@@ -119,18 +119,28 @@ namespace omtplayer
                             currentAudioDevices = server.AudioDevices;
                             Dictionary<string, string> avail = AudioPlayer.GetAvailableDevices();
                             List<string> active = new List<string>();
+                            bool hasExplicitDevice = false;
                             string[] selected = server.AudioDevices.Split(',');
                             foreach(string s in selected)
                             {
                                 if (avail.ContainsKey(s))
                                 {
                                     active.Add(avail[s]);
+                                    if (avail[s] != "default")
+                                    {
+                                        hasExplicitDevice = true;
+                                    }
                                 } 
                                 else if (s == "Default")
                                 {
                                     active.Add("default");
                                 }
                             }
+                            if (hasExplicitDevice)
+                            {
+                                active.RemoveAll(device => device == "default");
+                            }
+                            active = active.Distinct().ToList();
                             audioPlayer.SetActiveDevices(active);
                         }
                         bool gotAudio = r.Receive(OMTFrameType.Audio, 0, ref frame);

@@ -1,7 +1,14 @@
 # OMT Decoder (USB DAC 오디오 지원 포크)
 
+이 리포지토리는 클래스101 스튜디오에서 vMix 송출 화면을 이더넷 연결 환경에서
+Open Media Transport(OMT) 프로토콜로 모니터링하기 위해 만들었습니다.
+
 이 저장소는 https://github.com/openmediatransport/omtplayer 를 기반으로,
 Raspberry Pi 5에서 HDMI 영상과 함께 USB DAC 오디오 출력까지 지원하도록 확장한 포크입니다.
+
+테스트 환경:
+- Raspberry Pi 5 4GB 모델
+- USB DAC: https://www.coupang.com/vp/products/8926093893?vendorItemId=93070255836&sourceType=MyCoupang_my_orders_list_product_title
 
 ## 빠른 빌드 + 서비스 등록 (스크립트)
 
@@ -39,6 +46,8 @@ chmod +x build_and_install_service.sh
 - 인터레이스 소스는 디인터레이싱 없이 프로그레시브로 출력
 
 ## 설치 및 빌드 (원본 README 기반)
+
+라즈베리파이 OS를 먼저 설치한 뒤 진행하세요.
 
 1. 패키지 목록 업데이트
 
