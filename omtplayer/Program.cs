@@ -133,50 +133,51 @@ namespace omtplayer
                             }
                             audioPlayer.SetActiveDevices(active);
                         }
-                        if (r.Receive(OMTFrameType.Video | OMTFrameType.Audio, 500, ref frame))
+                        bool gotAudio = r.Receive(OMTFrameType.Audio, 0, ref frame);
+                        if (gotAudio && frame.Type == OMTFrameType.Audio)
                         {
-                            if (frame.Type == OMTFrameType.Video)
+                            audioPlayer.Enqueue(frame.Data, frame.Channels, frame.SamplesPerChannel, frame.SampleRate);
+                        }
+
+                        bool gotVideo = r.Receive(OMTFrameType.Video, gotAudio ? 0 : 500, ref frame);
+                        if (gotVideo && frame.Type == OMTFrameType.Video)
+                        {
+                            bool interlaced = false;
+                            if (frame.Flags.HasFlag(OMTVideoFlags.Interlaced)) interlaced = true;
+                            if (currentWidth != frame.Width || currentHeight != frame.Height || currentFrameRate != frame.FrameRate || currentInterlaced != interlaced)
                             {
-                                bool interlaced = false;
-                                if (frame.Flags.HasFlag(OMTVideoFlags.Interlaced)) interlaced = true;
-                                if (currentWidth != frame.Width || currentHeight != frame.Height || currentFrameRate != frame.FrameRate || currentInterlaced != interlaced)
-                                {
-                                    currentWidth = frame.Width;
-                                    currentHeight = frame.Height;
-                                    currentFrameRate = frame.FrameRate;
-                                    currentInterlaced = interlaced;
-                                    if (presenter != null)
-                                    {
-                                        dev.SetPresenter(null);
-                                        presenter.Dispose();
-                                        presenter = null;
-                                        WriteLog("Presenter.Clear");
-                                    }
-                                    WriteLog("Receive.NewFormat: " + frame.Width + "x" + frame.Height + " " + frame.FrameRate.ToString());
-                                    DRMMode? mode = connector.FindNearestMode(frame.Width, frame.Height, frame.FrameRate, false);
-                                    if (mode != null)
-                                    {
-                                        WriteLog("Presenter.NearestMatch: " + mode.ToString());
-                                        presenter = new DRMPresenter(dev, connector, mode, 3);
-                                        dev.SetPresenter(presenter);
-                                        WriteLog("Presenter.Created");
-                                    }
-                                    else
-                                    {
-                                        WriteLog("Presenter.NoDisplayModesFound");
-                                    }
-                                }
+                                currentWidth = frame.Width;
+                                currentHeight = frame.Height;
+                                currentFrameRate = frame.FrameRate;
+                                currentInterlaced = interlaced;
                                 if (presenter != null)
                                 {
-                                    presenter.Enqueue(frame.Data, frame.Stride);
+                                    dev.SetPresenter(null);
+                                    presenter.Dispose();
+                                    presenter = null;
+                                    WriteLog("Presenter.Clear");
+                                }
+                                WriteLog("Receive.NewFormat: " + frame.Width + "x" + frame.Height + " " + frame.FrameRate.ToString());
+                                DRMMode? mode = connector.FindNearestMode(frame.Width, frame.Height, frame.FrameRate, false);
+                                if (mode != null)
+                                {
+                                    WriteLog("Presenter.NearestMatch: " + mode.ToString());
+                                    presenter = new DRMPresenter(dev, connector, mode, 3);
+                                    dev.SetPresenter(presenter);
+                                    WriteLog("Presenter.Created");
+                                }
+                                else
+                                {
+                                    WriteLog("Presenter.NoDisplayModesFound");
                                 }
                             }
-                            else if (frame.Type == OMTFrameType.Audio)
+                            if (presenter != null)
                             {
-                                audioPlayer.Enqueue(frame.Data, frame.Channels, frame.SamplesPerChannel, frame.SampleRate);
+                                presenter.Enqueue(frame.Data, frame.Stride);
                             }
                         }
-                        else
+
+                        if (!gotAudio && !gotVideo)
                         {
                             WriteLog("Receive.NoFrame");
                         }

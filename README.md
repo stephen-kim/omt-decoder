@@ -13,7 +13,8 @@ chmod +x build_and_install_service.sh
 ./build_and_install_service.sh
 ```
 
-스크립트는 `/opt/omtplayer`로 설치하고 `omtplayer` systemd 서비스를 활성화합니다.
+스크립트는 `apt update`, 필수 패키지 설치, dotnet 8 설치까지 수행한 뒤
+`/opt/omtplayer`로 설치하고 `omtplayer` systemd 서비스를 활성화합니다.
 
 ## 주요 변경사항
 
