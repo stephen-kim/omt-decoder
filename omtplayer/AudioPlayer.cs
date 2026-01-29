@@ -130,7 +130,7 @@ namespace omtplayer
             }
             catch (Exception ex)
             {
-                Log($"Error scanning audio devices: {ex.Message}");
+                Console.WriteLine($"Error scanning audio devices: {ex.Message}");
             }
             return devices;
         }

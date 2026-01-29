@@ -45,6 +45,12 @@ echo "== Build omtplayer =="
 chmod 755 "$PLAYER_DIR/build/buildlinuxarm64.sh"
 (cd "$PLAYER_DIR/build" && ./buildlinuxarm64.sh)
 
+OMTPLAYER_BIN="$BUILD_DIR/omtplayer"
+if [[ ! -f "$OMTPLAYER_BIN" ]]; then
+  echo "Build output not found: $OMTPLAYER_BIN"
+  exit 1
+fi
+
 if [[ ! -d "$BUILD_DIR" ]]; then
   echo "Build output not found: $BUILD_DIR"
   exit 1
