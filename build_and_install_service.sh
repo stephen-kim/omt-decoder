@@ -6,6 +6,7 @@ LIBVMX_DIR="$ROOT_DIR/libvmx"
 LIBOMTNET_DIR="$ROOT_DIR/libomtnet"
 PLAYER_DIR="$ROOT_DIR/omtplayer"
 BUILD_DIR="$PLAYER_DIR/build/arm64"
+PUBLISH_DIR="$PLAYER_DIR/bin/Release/net8.0/linux-arm64/publish"
 INSTALL_DIR="/opt/omtplayer"
 
 echo "== System update =="
@@ -62,8 +63,15 @@ if [[ ! -f "$PLAYER_DIR/omtplayer.service" ]]; then
 fi
 
 echo "== Install service =="
+if systemctl is-active --quiet omtplayer; then
+  sudo systemctl stop omtplayer
+fi
 sudo mkdir -p "$INSTALL_DIR"
-sudo cp "$BUILD_DIR"/* "$INSTALL_DIR"/
+if [[ -d "$PUBLISH_DIR" ]]; then
+  sudo cp "$PUBLISH_DIR"/* "$INSTALL_DIR"/
+else
+  sudo cp "$BUILD_DIR"/* "$INSTALL_DIR"/
+fi
 sudo cp "$PLAYER_DIR/omtplayer.service" /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable omtplayer
