@@ -18,15 +18,15 @@ rm -rf "$LIBVMX_DIR/build/arm64" "$LIBOMTNET_DIR/build/arm64" "$PLAYER_DIR/build
 
 echo "== Build libvmx =="
 chmod 755 "$LIBVMX_DIR/build/buildlinuxarm64.sh"
-"$LIBVMX_DIR/build/buildlinuxarm64.sh"
+(cd "$LIBVMX_DIR/build" && ./buildlinuxarm64.sh)
 
 echo "== Build libomtnet =="
 chmod 755 "$LIBOMTNET_DIR/build/buildall.sh"
-"$LIBOMTNET_DIR/build/buildall.sh"
+(cd "$LIBOMTNET_DIR/build" && ./buildall.sh)
 
 echo "== Build omtplayer =="
 chmod 755 "$PLAYER_DIR/build/buildlinuxarm64.sh"
-"$PLAYER_DIR/build/buildlinuxarm64.sh"
+(cd "$PLAYER_DIR/build" && ./buildlinuxarm64.sh)
 
 if [[ ! -d "$BUILD_DIR" ]]; then
   echo "Build output not found: $BUILD_DIR"
