@@ -85,7 +85,7 @@ namespace libomtnet
                     {
                         case OMTPlatformType.Win32:
                             {
-                                Type? discoveryType = typeof(OMTDiscovery).Assembly.GetType("libomtnet.win32.OMTDiscoveryWin32");
+                                Type discoveryType = typeof(OMTDiscovery).Assembly.GetType("libomtnet.win32.OMTDiscoveryWin32");
                                 if (discoveryType != null)
                                 {
                                     instance = (OMTDiscovery)Activator.CreateInstance(discoveryType);

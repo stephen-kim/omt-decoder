@@ -89,7 +89,7 @@ namespace libomtnet
                     {
                         case OMTPlatformType.Win32:
                             {
-                                Type? platformType = typeof(OMTPlatform).Assembly.GetType("libomtnet.win32.Win32Platform");
+                                Type platformType = typeof(OMTPlatform).Assembly.GetType("libomtnet.win32.Win32Platform");
                                 if (platformType != null)
                                 {
                                     instance = (OMTPlatform)Activator.CreateInstance(platformType);
