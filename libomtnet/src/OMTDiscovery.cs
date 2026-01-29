@@ -84,7 +84,17 @@ namespace libomtnet
                     switch (OMTPlatform.GetPlatformType())
                     {
                         case OMTPlatformType.Win32:
-                            instance = new win32.OMTDiscoveryWin32();
+                            {
+                                Type? discoveryType = typeof(OMTDiscovery).Assembly.GetType("libomtnet.win32.OMTDiscoveryWin32");
+                                if (discoveryType != null)
+                                {
+                                    instance = (OMTDiscovery)Activator.CreateInstance(discoveryType);
+                                }
+                                else
+                                {
+                                    instance = new OMTDiscovery();
+                                }
+                            }
                             break;
                         case OMTPlatformType.MacOS:
                         case OMTPlatformType.iOS:
