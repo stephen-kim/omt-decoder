@@ -1,18 +1,21 @@
-# OMT Decoder (USB DAC 오디오 지원 포크)
+# OMT Decoder (USB DAC Audio Fork)
 
-이 리포지토리는 vMix 송출 화면을 이더넷 연결 환경에서
-Open Media Transport(OMT) 프로토콜로 모니터링하기 위해 만들었습니다.
+For the Korean version of this document, see [README.ko.md](README.ko.md).
 
-이 저장소는 https://github.com/openmediatransport/omtplayer 를 기반으로,
-Raspberry Pi 5에서 HDMI 영상과 함께 USB DAC 오디오 출력까지 지원하도록 확장한 포크입니다.
+This repository is a fork built to monitor a vMix output feed over Ethernet
+using the Open Media Transport (OMT) protocol.
 
-테스트 환경:
-- Raspberry Pi 5 4GB 모델
+It is based on https://github.com/openmediatransport/omtplayer and extends it
+to support USB DAC audio output alongside HDMI video on Raspberry Pi 5.
+
+Test environment:
+- Raspberry Pi 5 4GB model
 - USB DAC: https://www.coupang.com/vp/products/8926093893?vendorItemId=93070255836&sourceType=MyCoupang_my_orders_list_product_title
 
-## 빠른 빌드 + 서비스 등록 (스크립트)
+## Quick Build and Service Install
 
-사전 요구사항을 모두 설치한 뒤, 아래 스크립트 하나로 빌드와 서비스 등록까지 진행합니다.
+After installing the prerequisites, you can build and install the service with
+a single script:
 
 ```bash
 cd ~/cpm-omt-decode
@@ -20,52 +23,52 @@ chmod +x build_and_install_service.sh
 ./build_and_install_service.sh
 ```
 
-스크립트는 `apt update`, 필수 패키지 설치, dotnet 8 설치까지 수행한 뒤
-`/opt/omtplayer`로 설치하고 `omtplayer` systemd 서비스를 활성화합니다.
+The script runs `apt update`, installs required packages, installs .NET 8, then
+deploys to `/opt/omtplayer` and enables the `omtplayer` systemd service.
 
-## 주요 변경사항
+## Main Changes
 
-- ALSA 기반 오디오 출력 추가 (USB Audio Device 자동 감지)
-- 웹 UI에서 오디오 출력 장치 선택 가능 (복수 선택 가능, 즉시 적용)
-- OMT Audio 프레임 수신 및 재생 처리 포함
+- Added ALSA-based audio output with automatic USB audio device detection
+- Added selectable audio output devices in the web UI with immediate apply
+- Included OMT audio frame receive and playback handling
 
-## 요구사항
+## Requirements
 
-- Raspberry Pi 5 (기본 OS, 2GB 모델도 가능)
-- dotnet 8
+- Raspberry Pi 5 (base OS; 2GB model also works)
+- .NET 8
 - clang
 - git
 - libomtnet
 - libvmx
 
-## 성능/형식
+## Performance and Format Notes
 
-- 2GB Raspberry Pi 5 기준 1080p60 디코딩 가능
-- 디스플레이가 지원하는 해상도에 맞춰 자동 매칭
-- 프레임레이트는 60Hz를 우선 선택 (정확 매치가 없을 경우)
-- 인터레이스 소스는 디인터레이싱 없이 프로그레시브로 출력
+- Can decode 1080p60 on a Raspberry Pi 5 2GB
+- Automatically matches the display's supported resolution
+- Prefers 60Hz when there is no exact frame rate match
+- Outputs interlaced sources as progressive without deinterlacing
 
-## 설치 및 빌드 (원본 README 기반)
+## Installation and Build
 
-라즈베리파이 OS를 먼저 설치한 뒤 진행하세요.
+Install Raspberry Pi OS first, then continue.
 
-1. 패키지 목록 업데이트
+1. Update package lists
 
 ```bash
 sudo apt update
 ```
 
-2. Raspberry Pi OS를 콘솔 부팅으로 변경
+2. Switch Raspberry Pi OS to console boot
 
-omtplayer는 데스크톱 모드에서 직접 출력이 불가능합니다.
+`omtplayer` cannot render directly in desktop mode.
 
 ```bash
 sudo raspi-config
 ```
 
-`1 System Options` → `S5 Boot` → `B1 Console Text console` 선택
+Choose `1 System Options` -> `S5 Boot` -> `B1 Console Text console`.
 
-3. dotnet 8 설치
+3. Install .NET 8
 
 ```bash
 curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0
@@ -75,29 +78,29 @@ echo 'export PATH=$PATH:$HOME/.dotnet' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-참고: https://learn.microsoft.com/en-us/dotnet/iot/deployment  
-중요: `--channel` 값은 `8.0`이어야 합니다.
+Reference: https://learn.microsoft.com/en-us/dotnet/iot/deployment  
+Important: the `--channel` value must be `8.0`.
 
-4. clang 설치
+4. Install clang
 
 ```bash
 sudo apt install clang
 ```
 
-5. 소스 코드 배치
+5. Arrange the source tree
 
-클론한 저장소 기준으로 아래 구조를 가정합니다.
+Assume the cloned repository is laid out like this:
 
-```
+```text
 ~/cpm-omt-decode/libvmx
 ~/cpm-omt-decode/libomtnet
 ~/cpm-omt-decode/omtplayer
 ```
 
-원본 저장소에서 `libvmx`, `libomtnet`를 클론하고,
-본 포크를 `~/cpm-omt-decode`로 사용합니다.
+Clone `libvmx` and `libomtnet` from the original repositories, and use this fork
+as `~/cpm-omt-decode`.
 
-6. libvmx 빌드
+6. Build `libvmx`
 
 ```bash
 cd ~/cpm-omt-decode/libvmx/build
@@ -105,7 +108,7 @@ chmod 755 buildlinuxarm64.sh
 ./buildlinuxarm64.sh
 ```
 
-7. libomtnet 빌드
+7. Build `libomtnet`
 
 ```bash
 cd ~/cpm-omt-decode/libomtnet/build
@@ -113,7 +116,7 @@ chmod 755 buildall.sh
 ./buildall.sh
 ```
 
-8. omtplayer 빌드
+8. Build `omtplayer`
 
 ```bash
 cd ~/cpm-omt-decode/omtplayer/build
@@ -121,63 +124,65 @@ chmod 755 buildlinuxarm64.sh
 ./buildlinuxarm64.sh
 ```
 
-9. 실행 파일 위치
+9. Output location
 
-빌드 후 결과물은 `~/cpm-omt-decode/omtplayer/build/arm64`에 생성됩니다.
+After the build, binaries are generated under
+`~/cpm-omt-decode/omtplayer/build/arm64`.
 
-## 실행 방법
+## Running
 
 ```bash
 ~/cpm-omt-decode/omtplayer/build/arm64/omtplayer
 ```
 
-- HDMI 출력은 Pi의 HDMI 0 포트(USB-C 전원 포트 옆)에 연결해야 합니다.
-- 같은 네트워크의 다른 PC에서 웹 UI 접속:
+- Connect HDMI output to the Pi's HDMI 0 port, next to the USB-C power port.
+- Access the web UI from another PC on the same network:
 
-```
+```text
 http://<pi-ip>:8080/
 ```
 
-omtplayer는 마지막으로 선택한 소스를 자동으로 기억합니다.
+`omtplayer` remembers the last selected source automatically.
 
-## USB DAC 오디오 사용
+## Using USB DAC Audio
 
-1. USB DAC 연결 후 인식 확인
+1. Confirm the USB DAC is detected
 
 ```bash
 cat /proc/asound/cards
 ```
 
-`USB-Audio`가 표시되어야 합니다.
+You should see `USB-Audio`.
 
-2. 실행 로그에서 장치 선택 확인
+2. Check the runtime log for selected device messages
 
 - `Found USB Audio Device: plughw:X,0`
-- 또는 `Using Default Audio Device: default`
+- `Using Default Audio Device: default`
 
-3. 웹 UI에서 오디오 장치 선택
+3. Select audio devices in the web UI
 
-웹 UI의 Audio Devices 섹션에서 USB/Default 장치를 선택하면 즉시 전환됩니다.
-복수 선택도 가능합니다 (예: HDMI + USB DAC 동시 출력).
+In the Audio Devices section, select the USB or default device to switch
+immediately. Multiple selections are also supported, for example HDMI and USB
+DAC at the same time.
 
-## 서비스로 등록 (선택)
+## Register as a Service
 
-부팅 시 자동 실행이 필요하다면 다음을 수행하세요.
+If you want the player to start automatically on boot:
 
-1. 실행 파일 복사
+1. Copy the executable files
 
 ```bash
 sudo mkdir /opt/omtplayer
 sudo cp ~/cpm-omt-decode/omtplayer/build/arm64/* /opt/omtplayer/
 ```
 
-2. systemd 서비스 등록
+2. Install the systemd service
 
 ```bash
 sudo cp ~/cpm-omt-decode/omtplayer/omtplayer.service /etc/systemd/system/
 ```
 
-3. 서비스 활성화 및 시작
+3. Enable and start the service
 
 ```bash
 sudo systemctl daemon-reload
@@ -186,14 +191,15 @@ sudo systemctl start omtplayer
 sudo systemctl status omtplayer
 ```
 
-정상 동작 시 포트 8080에서 웹 UI가 접근 가능합니다.
+If everything is working, the web UI will be available on port 8080.
 
-## 문제 해결
+## Troubleshooting
 
-- 소리가 안 나면 `libasound2` 설치 여부 확인:
+- If audio does not play, make sure `libasound2` is installed:
 
 ```bash
 sudo apt install libasound2
 ```
 
-- HDMI로만 소리가 나오면 실행 로그에서 USB 장치 감지 여부를 확인하세요.
+- If audio only plays over HDMI, check the runtime log to confirm USB device
+  detection.
