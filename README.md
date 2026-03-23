@@ -1,6 +1,6 @@
 # OMT Decoder (USB DAC 오디오 지원 포크)
 
-이 리포지토리는 클래스101 스튜디오에서 vMix 송출 화면을 이더넷 연결 환경에서
+이 리포지토리는 vMix 송출 화면을 이더넷 연결 환경에서
 Open Media Transport(OMT) 프로토콜로 모니터링하기 위해 만들었습니다.
 
 이 저장소는 https://github.com/openmediatransport/omtplayer 를 기반으로,
