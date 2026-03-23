@@ -14,8 +14,7 @@ Test environment:
 
 ## Quick Build and Service Install
 
-After installing the prerequisites, you can build and install the service with
-a single script:
+This repository is intended to be installed with a single script:
 
 ```bash
 cd ~/omt-decoder
@@ -26,39 +25,9 @@ chmod +x build_and_install_service.sh
 The script runs `apt update`, installs required packages, installs .NET 8, then
 deploys to `/opt/omtplayer` and enables the `omtplayer` systemd service.
 
-## Main Changes
+## Before Running the Script
 
-- Added ALSA-based audio output with automatic USB audio device detection
-- Added selectable audio output devices in the web UI with immediate apply
-- Included OMT audio frame receive and playback handling
-
-## Requirements
-
-- Raspberry Pi 5 (base OS; 2GB model also works)
-- .NET 8
-- clang
-- git
-- libomtnet
-- libvmx
-
-## Performance and Format Notes
-
-- Can decode 1080p60 on a Raspberry Pi 5 2GB
-- Automatically matches the display's supported resolution
-- Prefers 60Hz when there is no exact frame rate match
-- Outputs interlaced sources as progressive without deinterlacing
-
-## Installation and Build
-
-Install Raspberry Pi OS first, then continue.
-
-1. Update package lists
-
-```bash
-sudo apt update
-```
-
-2. Switch Raspberry Pi OS to console boot
+Install Raspberry Pi OS first, then switch it to console boot mode.
 
 `omtplayer` cannot render directly in desktop mode.
 
@@ -68,28 +37,22 @@ sudo raspi-config
 
 Choose `1 System Options` -> `S5 Boot` -> `B1 Console Text console`.
 
-3. Install .NET 8
+## Main Changes
 
-```bash
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0
+- Added ALSA-based audio output with automatic USB audio device detection
+- Added selectable audio output devices in the web UI with immediate apply
+- Included OMT audio frame receive and playback handling
 
-echo 'export DOTNET_ROOT=$HOME/.dotnet' >> ~/.bashrc
-echo 'export PATH=$PATH:$HOME/.dotnet' >> ~/.bashrc
-source ~/.bashrc
-```
+## What the Script Does
 
-Reference: https://learn.microsoft.com/en-us/dotnet/iot/deployment  
-Important: the `--channel` value must be `8.0`.
+- Updates apt package lists
+- Installs `clang`, `git`, `curl`, and `libasound2`
+- Installs .NET 8 if `dotnet` is missing
+- Builds `libvmx`, `libomtnet`, and `omtplayer`
+- Installs files into `/opt/omtplayer`
+- Registers and restarts the `omtplayer` systemd service
 
-4. Install clang
-
-```bash
-sudo apt install clang
-```
-
-5. Arrange the source tree
-
-Assume the cloned repository is laid out like this:
+The repository is expected to be checked out as:
 
 ```text
 ~/omt-decoder/libvmx
@@ -97,37 +60,12 @@ Assume the cloned repository is laid out like this:
 ~/omt-decoder/omtplayer
 ```
 
-Clone `libvmx` and `libomtnet` from the original repositories, and use this fork
-as `~/omt-decoder`.
+## Performance and Format Notes
 
-6. Build `libvmx`
-
-```bash
-cd ~/omt-decoder/libvmx/build
-chmod 755 buildlinuxarm64.sh
-./buildlinuxarm64.sh
-```
-
-7. Build `libomtnet`
-
-```bash
-cd ~/omt-decoder/libomtnet/build
-chmod 755 buildall.sh
-./buildall.sh
-```
-
-8. Build `omtplayer`
-
-```bash
-cd ~/omt-decoder/omtplayer/build
-chmod 755 buildlinuxarm64.sh
-./buildlinuxarm64.sh
-```
-
-9. Output location
-
-After the build, binaries are generated under
-`~/omt-decoder/omtplayer/build/arm64`.
+- Can decode 1080p60 on a Raspberry Pi 5 2GB
+- Automatically matches the display's supported resolution
+- Prefers 60Hz when there is no exact frame rate match
+- Outputs interlaced sources as progressive without deinterlacing
 
 ## Running
 
@@ -165,29 +103,13 @@ In the Audio Devices section, select the USB or default device to switch
 immediately. Multiple selections are also supported, for example HDMI and USB
 DAC at the same time.
 
-## Register as a Service
+## Service Status
 
-If you want the player to start automatically on boot:
+The install script already registers and restarts the `omtplayer` service.
 
-1. Copy the executable files
-
-```bash
-sudo mkdir /opt/omtplayer
-sudo cp ~/omt-decoder/omtplayer/build/arm64/* /opt/omtplayer/
-```
-
-2. Install the systemd service
+To check the current service status manually:
 
 ```bash
-sudo cp ~/omt-decoder/omtplayer/omtplayer.service /etc/systemd/system/
-```
-
-3. Enable and start the service
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable omtplayer
-sudo systemctl start omtplayer
 sudo systemctl status omtplayer
 ```
 
