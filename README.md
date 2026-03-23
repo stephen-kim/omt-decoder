@@ -1,6 +1,6 @@
 # OMT Decoder (USB DAC Audio Fork)
 
-For the Korean version of this document, see [README.ko.md](README.ko.md).
+한국어 문서는 [README.ko.md](README.ko.md)를 참고하세요.
 
 This repository is a fork built to monitor a vMix output feed over Ethernet
 using the Open Media Transport (OMT) protocol.
