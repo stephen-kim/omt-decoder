@@ -15,7 +15,7 @@ Raspberry Pi 5에서 HDMI 영상과 함께 USB DAC 오디오 출력까지 지원
 사전 요구사항을 모두 설치한 뒤, 아래 스크립트 하나로 빌드와 서비스 등록까지 진행합니다.
 
 ```bash
-cd ~/cpm-omt-decode
+cd ~/omt-decoder
 chmod +x build_and_install_service.sh
 ./build_and_install_service.sh
 ```
@@ -89,18 +89,18 @@ sudo apt install clang
 클론한 저장소 기준으로 아래 구조를 가정합니다.
 
 ```
-~/cpm-omt-decode/libvmx
-~/cpm-omt-decode/libomtnet
-~/cpm-omt-decode/omtplayer
+~/omt-decoder/libvmx
+~/omt-decoder/libomtnet
+~/omt-decoder/omtplayer
 ```
 
 원본 저장소에서 `libvmx`, `libomtnet`를 클론하고,
-본 포크를 `~/cpm-omt-decode`로 사용합니다.
+본 포크를 `~/omt-decoder`로 사용합니다.
 
 6. libvmx 빌드
 
 ```bash
-cd ~/cpm-omt-decode/libvmx/build
+cd ~/omt-decoder/libvmx/build
 chmod 755 buildlinuxarm64.sh
 ./buildlinuxarm64.sh
 ```
@@ -108,7 +108,7 @@ chmod 755 buildlinuxarm64.sh
 7. libomtnet 빌드
 
 ```bash
-cd ~/cpm-omt-decode/libomtnet/build
+cd ~/omt-decoder/libomtnet/build
 chmod 755 buildall.sh
 ./buildall.sh
 ```
@@ -116,19 +116,19 @@ chmod 755 buildall.sh
 8. omtplayer 빌드
 
 ```bash
-cd ~/cpm-omt-decode/omtplayer/build
+cd ~/omt-decoder/omtplayer/build
 chmod 755 buildlinuxarm64.sh
 ./buildlinuxarm64.sh
 ```
 
 9. 실행 파일 위치
 
-빌드 후 결과물은 `~/cpm-omt-decode/omtplayer/build/arm64`에 생성됩니다.
+빌드 후 결과물은 `~/omt-decoder/omtplayer/build/arm64`에 생성됩니다.
 
 ## 실행 방법
 
 ```bash
-~/cpm-omt-decode/omtplayer/build/arm64/omtplayer
+~/omt-decoder/omtplayer/build/arm64/omtplayer
 ```
 
 - HDMI 출력은 Pi의 HDMI 0 포트(USB-C 전원 포트 옆)에 연결해야 합니다.
@@ -168,13 +168,13 @@ cat /proc/asound/cards
 
 ```bash
 sudo mkdir /opt/omtplayer
-sudo cp ~/cpm-omt-decode/omtplayer/build/arm64/* /opt/omtplayer/
+sudo cp ~/omt-decoder/omtplayer/build/arm64/* /opt/omtplayer/
 ```
 
 2. systemd 서비스 등록
 
 ```bash
-sudo cp ~/cpm-omt-decode/omtplayer/omtplayer.service /etc/systemd/system/
+sudo cp ~/omt-decoder/omtplayer/omtplayer.service /etc/systemd/system/
 ```
 
 3. 서비스 활성화 및 시작

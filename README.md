@@ -18,7 +18,7 @@ After installing the prerequisites, you can build and install the service with
 a single script:
 
 ```bash
-cd ~/cpm-omt-decode
+cd ~/omt-decoder
 chmod +x build_and_install_service.sh
 ./build_and_install_service.sh
 ```
@@ -92,18 +92,18 @@ sudo apt install clang
 Assume the cloned repository is laid out like this:
 
 ```text
-~/cpm-omt-decode/libvmx
-~/cpm-omt-decode/libomtnet
-~/cpm-omt-decode/omtplayer
+~/omt-decoder/libvmx
+~/omt-decoder/libomtnet
+~/omt-decoder/omtplayer
 ```
 
 Clone `libvmx` and `libomtnet` from the original repositories, and use this fork
-as `~/cpm-omt-decode`.
+as `~/omt-decoder`.
 
 6. Build `libvmx`
 
 ```bash
-cd ~/cpm-omt-decode/libvmx/build
+cd ~/omt-decoder/libvmx/build
 chmod 755 buildlinuxarm64.sh
 ./buildlinuxarm64.sh
 ```
@@ -111,7 +111,7 @@ chmod 755 buildlinuxarm64.sh
 7. Build `libomtnet`
 
 ```bash
-cd ~/cpm-omt-decode/libomtnet/build
+cd ~/omt-decoder/libomtnet/build
 chmod 755 buildall.sh
 ./buildall.sh
 ```
@@ -119,7 +119,7 @@ chmod 755 buildall.sh
 8. Build `omtplayer`
 
 ```bash
-cd ~/cpm-omt-decode/omtplayer/build
+cd ~/omt-decoder/omtplayer/build
 chmod 755 buildlinuxarm64.sh
 ./buildlinuxarm64.sh
 ```
@@ -127,12 +127,12 @@ chmod 755 buildlinuxarm64.sh
 9. Output location
 
 After the build, binaries are generated under
-`~/cpm-omt-decode/omtplayer/build/arm64`.
+`~/omt-decoder/omtplayer/build/arm64`.
 
 ## Running
 
 ```bash
-~/cpm-omt-decode/omtplayer/build/arm64/omtplayer
+~/omt-decoder/omtplayer/build/arm64/omtplayer
 ```
 
 - Connect HDMI output to the Pi's HDMI 0 port, next to the USB-C power port.
@@ -173,13 +173,13 @@ If you want the player to start automatically on boot:
 
 ```bash
 sudo mkdir /opt/omtplayer
-sudo cp ~/cpm-omt-decode/omtplayer/build/arm64/* /opt/omtplayer/
+sudo cp ~/omt-decoder/omtplayer/build/arm64/* /opt/omtplayer/
 ```
 
 2. Install the systemd service
 
 ```bash
-sudo cp ~/cpm-omt-decode/omtplayer/omtplayer.service /etc/systemd/system/
+sudo cp ~/omt-decoder/omtplayer/omtplayer.service /etc/systemd/system/
 ```
 
 3. Enable and start the service
