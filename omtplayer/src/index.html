@@ -1,0 +1,305 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OMT Player</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+:root {
+  --bg-0: #070a0f;
+  --bg-1: #0c121a;
+  --bg-2: #101824;
+  --card: #0f1722;
+  --card-2: #101b28;
+  --border: #1f2a3a;
+  --muted: #9aa4b2;
+  --text: #e7eef8;
+  --accent: #ffb347;
+  --accent-2: #56d4ff;
+  --accent-3: #6ef7c7;
+  --shadow: 0 22px 50px rgba(4, 8, 16, 0.5);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Sora", "Space Grotesk", system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 32px 16px 56px;
+  color: var(--text);
+  background:
+    radial-gradient(800px 440px at 12% -10%, rgba(86, 212, 255, 0.16), transparent 70%),
+    radial-gradient(900px 520px at 92% -20%, rgba(110, 247, 199, 0.14), transparent 70%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  min-height: 100vh;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 20px;
+}
+
+.hero {
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 179, 71, 0.12), rgba(86, 212, 255, 0.08));
+  border: 1px solid rgba(86, 212, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  box-shadow: var(--shadow);
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  margin: 0 0 6px;
+}
+
+h1 { font-size: 28px; margin: 0 0 6px; }
+
+.sub { margin: 0; color: var(--muted); font-size: 14px; }
+
+.status-pill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(86, 212, 255, 0.14);
+  border: 1px solid rgba(86, 212, 255, 0.35);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.card {
+  background: linear-gradient(180deg, var(--card), var(--card-2));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+
+.card-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.help {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+select {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #0c1219;
+  color: var(--text);
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+select:focus {
+  border-color: rgba(86, 212, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(86, 212, 255, 0.12);
+}
+
+input[type=checkbox] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent-2);
+}
+
+.check-grid { display: grid; gap: 8px; margin-top: 8px; }
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+button {
+  padding: 10px 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0b1119;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(86, 212, 255, 0.25);
+  font-family: inherit;
+}
+
+button:hover { transform: translateY(-1px); }
+
+button.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fade-in { animation: fadeIn 320ms ease-out; }
+.hidden { display: none !important; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .hero { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+<div class="page fade-in">
+  <header class="hero">
+    <div>
+      <div class="kicker">OMT Player</div>
+      <h1>Control Deck</h1>
+      <p class="sub">Stream receiver and audio output controls.</p>
+    </div>
+    <div>
+      <div id="status" class="status-pill hidden"></div>
+      <div class="btn-row">
+        <button onclick="saveConfig()">Save changes</button>
+        <button class="ghost" onclick="loadAll()">Refresh</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="card-title">Source</div>
+    <label>Stream source</label>
+    <select id="cboSource"></select>
+    <div class="help">Select the OMT stream to receive and play back.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Audio Devices</div>
+    <div id="audioDevices" class="check-grid"></div>
+    <div class="help">Select one or more audio outputs for playback.</div>
+  </div>
+</div>
+
+<script>
+let currentConfig = null;
+
+async function loadConfig() {
+  const res = await fetch('/api/config');
+  currentConfig = await res.json();
+}
+
+async function loadSources() {
+  const res = await fetch('/api/sources');
+  const data = await res.json();
+  const sel = document.getElementById('cboSource');
+  sel.innerHTML = '';
+
+  const current = currentConfig ? currentConfig.source : 'None';
+  const allSources = new Set(data.sources);
+  if (current && current !== 'None') allSources.add(current);
+  allSources.add('None');
+
+  for (const src of allSources) {
+    const opt = document.createElement('option');
+    opt.value = src;
+    opt.textContent = src;
+    if (src === current) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadDevices() {
+  const res = await fetch('/api/devices');
+  const data = await res.json();
+  const container = document.getElementById('audioDevices');
+  container.innerHTML = '';
+
+  const selected = new Set(currentConfig ? currentConfig.audio_devices : ['default']);
+
+  for (const [display, alsa] of data.audio_devices) {
+    const label = document.createElement('label');
+    label.className = 'check-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = alsa;
+    cb.checked = selected.has(alsa) || selected.has(display);
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(display));
+    container.appendChild(label);
+  }
+}
+
+async function loadAll() {
+  await loadConfig();
+  await loadSources();
+  await loadDevices();
+  showStatus('Ready');
+}
+
+async function saveConfig() {
+  const source = document.getElementById('cboSource').value;
+  const audioDevices = [];
+  document.querySelectorAll('#audioDevices input[type=checkbox]').forEach(cb => {
+    if (cb.checked) audioDevices.push(cb.value);
+  });
+  if (audioDevices.length === 0) audioDevices.push('default');
+
+  const payload = {
+    source: source,
+    audio_devices: audioDevices,
+    web_port: currentConfig ? currentConfig.web_port : 8080
+  };
+
+  const res = await fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const result = await res.json();
+  showStatus(result.message || 'Saved');
+}
+
+function showStatus(msg) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+loadAll();
+</script>
+</body>
+</html>
