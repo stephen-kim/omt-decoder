@@ -1,21 +1,15 @@
-use libomtnet::{OMTClient, OMTFrame};
+use libomtnet::{OMTClient, OMTFrame, OMTFrameType};
 use tokio::sync::mpsc;
 
 pub struct ReceiverHandle {
-    rx: mpsc::Receiver<OMTFrame>,
-    _cancel: tokio::sync::watch::Sender<bool>,
-}
-
-impl ReceiverHandle {
-    pub async fn recv(&mut self) -> Option<OMTFrame> {
-        self.rx.recv().await
-    }
+    pub audio_rx: mpsc::Receiver<OMTFrame>,
+    pub video_rx: mpsc::Receiver<OMTFrame>,
+    pub _cancel: tokio::sync::watch::Sender<bool>,
 }
 
 /// Start a background task that connects to an OMT source and receives frames.
-/// Returns a handle to receive frames, or None if the address is invalid.
+/// Audio and video are dispatched to separate channels so one never blocks the other.
 pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
-    // Parse omt://host:port → host:port
     let addr = address
         .strip_prefix("omt://")
         .unwrap_or(address)
@@ -25,7 +19,8 @@ pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
         return None;
     }
 
-    let (tx, rx) = mpsc::channel::<OMTFrame>(64);
+    let (audio_tx, audio_rx) = mpsc::channel::<OMTFrame>(64);
+    let (video_tx, video_rx) = mpsc::channel::<OMTFrame>(8);
     let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
 
     tokio::spawn(async move {
@@ -51,17 +46,23 @@ pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
                     frame = client.receive() => {
                         match frame {
                             Some(Ok(f)) => {
-                                if tx.send(f).await.is_err() {
-                                    return; // receiver dropped
+                                let send_result = match f.header.frame_type {
+                                    OMTFrameType::Audio => audio_tx.try_send(f),
+                                    OMTFrameType::Video => video_tx.try_send(f),
+                                    _ => Ok(()),
+                                };
+                                if let Err(mpsc::error::TrySendError::Closed(_)) = send_result {
+                                    return;
                                 }
+                                // TrySendError::Full is fine — drop the frame rather than block
                             }
                             Some(Err(e)) => {
                                 eprintln!("Receive error: {}", e);
-                                break; // reconnect
+                                break;
                             }
                             None => {
                                 println!("Connection closed");
-                                break; // reconnect
+                                break;
                             }
                         }
                     }
@@ -69,7 +70,6 @@ pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
                 }
             }
 
-            // Brief delay before reconnect
             tokio::select! {
                 _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {},
                 _ = cancel_rx.changed() => return,
@@ -78,7 +78,8 @@ pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
     });
 
     Some(ReceiverHandle {
-        rx,
+        audio_rx,
+        video_rx,
         _cancel: cancel_tx,
     })
 }
