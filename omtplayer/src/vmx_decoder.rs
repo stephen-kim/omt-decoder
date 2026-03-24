@@ -1,5 +1,5 @@
 use libvmx_sys::root::*;
-use std::ptr;
+use ::std::ptr;
 
 pub struct VmxDecoder {
     instance: *mut VMX_INSTANCE,

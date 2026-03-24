@@ -1,4 +1,4 @@
-use libc::{c_int, c_uint, c_ulong, c_void};
+use libc::{c_int, c_ulong, c_void};
 use std::collections::VecDeque;
 use std::os::fd::RawFd;
 use std::ptr;
@@ -415,7 +415,7 @@ impl VideoOutput {
             );
         }
 
-        let mut vo = VideoOutput {
+        let vo = VideoOutput {
             fd,
             crtc_id: encoder_crtc_id,
             connector_id,

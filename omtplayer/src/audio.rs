@@ -155,10 +155,9 @@ fn playback_loop(
             if ch == 0 {
                 continue;
             }
-            let frames = buf.len() / ch as usize;
             let handles = handles.lock().unwrap();
             for dev in handles.iter() {
-                let io = unsafe { dev.pcm.io_f32().ok() };
+                let io = dev.pcm.io_f32().ok();
                 if let Some(io) = io {
                     match io.writei(&buf) {
                         Ok(_) => {}
