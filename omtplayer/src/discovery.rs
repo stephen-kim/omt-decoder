@@ -3,10 +3,11 @@ use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-pub type SourceList = Arc<RwLock<Vec<String>>>;
+/// (display_name, omt://address:port)
+pub type OmtSource = (String, String);
+pub type SourceList = Arc<RwLock<Vec<OmtSource>>>;
 
 /// Start a background task that periodically discovers OMT sources via avahi-browse.
-/// Returns a shared list of discovered source addresses (e.g. "omt://hostname:6400").
 pub fn start_discovery() -> SourceList {
     let sources: SourceList = Arc::new(RwLock::new(Vec::new()));
     let sources_clone = sources.clone();
@@ -26,8 +27,7 @@ pub fn start_discovery() -> SourceList {
 }
 
 /// Run avahi-browse to find _omt._tcp services on the local network.
-/// Returns a list of "omt://address:port" strings.
-fn browse_omt_sources() -> Vec<String> {
+fn browse_omt_sources() -> Vec<OmtSource> {
     let output = Command::new("avahi-browse")
         .args(["-rpt", "_omt._tcp"])
         .output();
@@ -41,10 +41,10 @@ fn browse_omt_sources() -> Vec<String> {
     parse_avahi_output(&stdout)
 }
 
-/// Parse avahi-browse -rpt output into omt:// URLs.
+/// Parse avahi-browse -rpt output into (name, url) pairs.
 /// Format: "=;interface;protocol;name;type;domain;hostname;address;port;txt"
-fn parse_avahi_output(output: &str) -> Vec<String> {
-    let mut sources: HashMap<String, String> = HashMap::new();
+fn parse_avahi_output(output: &str) -> Vec<OmtSource> {
+    let mut sources: HashMap<String, OmtSource> = HashMap::new();
 
     for line in output.lines() {
         if !line.starts_with('=') {
@@ -65,7 +65,7 @@ fn parse_avahi_output(output: &str) -> Vec<String> {
         }
 
         let url = format!("omt://{}:{}", address, port);
-        sources.insert(name.to_string(), url);
+        sources.insert(name.to_string(), (name.to_string(), url));
     }
 
     sources.into_values().collect()

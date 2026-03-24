@@ -19,8 +19,14 @@ pub struct WebState {
 }
 
 #[derive(Serialize)]
+struct SourceEntry {
+    name: String,
+    url: String,
+}
+
+#[derive(Serialize)]
 struct SourcesResponse {
-    sources: Vec<String>,
+    sources: Vec<SourceEntry>,
 }
 
 #[derive(Serialize)]
@@ -81,9 +87,14 @@ async fn update_config(
 
 async fn get_sources(State(state): State<WebState>) -> Json<SourcesResponse> {
     let sources = state.sources.read().await;
-    Json(SourcesResponse {
-        sources: sources.clone(),
-    })
+    let entries = sources
+        .iter()
+        .map(|(name, url)| SourceEntry {
+            name: name.clone(),
+            url: url.clone(),
+        })
+        .collect();
+    Json(SourcesResponse { sources: entries })
 }
 
 async fn get_devices() -> Json<DevicesResponse> {

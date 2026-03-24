@@ -208,7 +208,7 @@ button.ghost {
   </div>
 
   <div class="card">
-    <div class="card-title">Audio Devices</div>
+    <div class="card-title">Audio Output Devices</div>
     <div id="audioDevices" class="check-grid"></div>
     <div class="help">Select one or more audio outputs for playback.</div>
   </div>
@@ -229,15 +229,29 @@ async function loadSources() {
   sel.innerHTML = '';
 
   const current = currentConfig ? currentConfig.source : 'None';
-  const allSources = new Set(data.sources);
-  if (current && current !== 'None') allSources.add(current);
-  allSources.add('None');
 
-  for (const src of allSources) {
+  // Build source list: [{name, url}]
+  const sourceMap = new Map();
+  for (const s of data.sources) {
+    sourceMap.set(s.url, s.name);
+  }
+  // Include current source even if not discovered
+  if (current && current !== 'None' && !sourceMap.has(current)) {
+    sourceMap.set(current, current);
+  }
+
+  // "None" option first
+  const noneOpt = document.createElement('option');
+  noneOpt.value = 'None';
+  noneOpt.textContent = 'None';
+  if (current === 'None') noneOpt.selected = true;
+  sel.appendChild(noneOpt);
+
+  for (const [url, name] of sourceMap) {
     const opt = document.createElement('option');
-    opt.value = src;
-    opt.textContent = src;
-    if (src === current) opt.selected = true;
+    opt.value = url;
+    opt.textContent = name;
+    if (url === current) opt.selected = true;
     sel.appendChild(opt);
   }
 }
