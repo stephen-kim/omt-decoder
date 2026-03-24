@@ -66,14 +66,35 @@ h1 { font-size: 28px; margin: 0 0 6px; }
 
 .sub { margin: 0; color: var(--muted); font-size: 14px; }
 
-.status-pill {
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(86, 212, 255, 0.14);
-  border: 1px solid rgba(86, 212, 255, 0.35);
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  padding: 12px 20px;
+  border-radius: 12px;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 16px 40px rgba(4, 8, 16, 0.6);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 280ms ease, opacity 280ms ease;
+  z-index: 100;
+  max-width: 90vw;
+  text-align: center;
 }
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.success { border-color: rgba(110, 247, 199, 0.5); background: linear-gradient(135deg, rgba(110, 247, 199, 0.15), var(--card)); }
+.toast.error   { border-color: rgba(255, 107, 107, 0.5); background: linear-gradient(135deg, rgba(255, 107, 107, 0.15), var(--card)); }
+.toast.info    { border-color: rgba(86, 212, 255, 0.5);  background: linear-gradient(135deg, rgba(86, 212, 255, 0.15), var(--card)); }
 
 .card {
   background: linear-gradient(180deg, var(--card), var(--card-2));
@@ -191,12 +212,9 @@ button.ghost {
       <h1>Control Deck</h1>
       <p class="sub">Stream receiver and audio output controls.</p>
     </div>
-    <div>
-      <div id="status" class="status-pill hidden"></div>
-      <div class="btn-row">
-        <button onclick="saveConfig()">Save changes</button>
-        <button class="ghost" onclick="loadAll()">Refresh</button>
-      </div>
+    <div class="btn-row">
+      <button onclick="saveConfig()">Save changes</button>
+      <button class="ghost" onclick="loadAll()">Refresh</button>
     </div>
   </header>
 
@@ -213,6 +231,8 @@ button.ghost {
     <div class="help">Select one or more audio outputs for playback.</div>
   </div>
 </div>
+
+<div id="toast" class="toast"></div>
 
 <script>
 let currentConfig = null;
@@ -278,10 +298,14 @@ async function loadDevices() {
 }
 
 async function loadAll() {
-  await loadConfig();
-  await loadSources();
-  await loadDevices();
-  showStatus('Ready');
+  try {
+    await loadConfig();
+    await loadSources();
+    await loadDevices();
+    toast('Refreshed', 'info');
+  } catch (e) {
+    toast('Failed to load: ' + e.message, 'error');
+  }
 }
 
 async function saveConfig() {
@@ -298,19 +322,29 @@ async function saveConfig() {
     web_port: currentConfig ? currentConfig.web_port : 8080
   };
 
-  const res = await fetch('/api/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const result = await res.json();
-  showStatus(result.message || 'Saved');
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+    toast(result.message || 'Saved', result.ok ? 'success' : 'error');
+  } catch (e) {
+    toast('Failed to save: ' + e.message, 'error');
+  }
 }
 
-function showStatus(msg) {
-  const el = document.getElementById('status');
+let toastTimer = null;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
   el.textContent = msg;
-  el.classList.remove('hidden');
+  el.className = 'toast ' + (type || 'info');
+  // Force reflow so re-triggering works
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
 loadAll();
