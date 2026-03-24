@@ -282,7 +282,7 @@ async function loadDevices() {
   const container = document.getElementById('audioDevices');
   container.innerHTML = '';
 
-  const selected = new Set(currentConfig ? currentConfig.audio_devices : ['default']);
+  const selected = new Set(currentConfig ? currentConfig.audio_devices : []);
 
   for (const [display, alsa] of data.audio_devices) {
     const label = document.createElement('label');
@@ -314,7 +314,7 @@ async function saveConfig() {
   document.querySelectorAll('#audioDevices input[type=checkbox]').forEach(cb => {
     if (cb.checked) audioDevices.push(cb.value);
   });
-  if (audioDevices.length === 0) audioDevices.push('default');
+  // No fallback — user must explicitly select devices
 
   const payload = {
     source: source,

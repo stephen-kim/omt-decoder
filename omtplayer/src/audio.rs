@@ -176,7 +176,7 @@ fn playback_loop(
 /// List available ALSA playback devices by parsing /proc/asound/cards.
 /// Returns a list of (display_name, alsa_device) pairs.
 pub fn get_available_devices() -> Vec<(String, String)> {
-    let mut devices = vec![("Default".to_string(), "default".to_string())];
+    let mut devices = Vec::new();
 
     if let Ok(content) = std::fs::read_to_string("/proc/asound/cards") {
         let re = regex_lite::Regex::new(r"^\s*(\d+)\s+\[.*?\]:\s*(.*?)\s+-\s+(.*)").unwrap();

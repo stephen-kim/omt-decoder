@@ -15,7 +15,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             source: "None".to_string(),
-            audio_devices: vec!["default".to_string()],
+            audio_devices: Vec::new(),
             web_port: 8080,
         }
     }
