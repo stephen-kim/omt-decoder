@@ -101,6 +101,8 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
         recv = receiver::start_receiver(&current_source);
     }
 
+    let mut frame_count: u64 = 0;
+
     loop {
         // Check for settings changes (non-blocking)
         if settings_rx.has_changed().unwrap_or(false) {
@@ -133,8 +135,7 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             continue;
         };
 
-        // Audio: drain all available frames (non-blocking) — matches C# Receive(Audio, 0)
-        let mut got_audio = false;
+        // Audio: drain all available frames (non-blocking)
         #[cfg(target_os = "linux")]
         while let Ok(frame) = r.audio_rx.try_recv() {
             if let Some(ref ah) = frame.audio_header {
@@ -144,19 +145,13 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                     ah.samples_per_channel as u32,
                     ah.sample_rate as u32,
                 );
-                got_audio = true;
             }
         }
 
-        // Video: if we got audio, non-blocking; otherwise wait with timeout
-        // — matches C# Receive(Video, gotAudio ? 0 : 500)
-        let video_frame = if got_audio {
-            r.video_rx.try_recv().ok()
-        } else {
-            r.video_rx
-                .recv_timeout(std::time::Duration::from_millis(500))
-                .ok()
-        };
+        // Video: always wait with short timeout to stay responsive
+        let video_frame = r.video_rx
+            .recv_timeout(std::time::Duration::from_millis(16))
+            .ok();
 
         #[cfg(target_os = "linux")]
         if let Some(frame) = video_frame {
@@ -187,9 +182,20 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                 }
 
                 if let Some(ref mut dec) = vmx_dec {
+                    let t0 = std::time::Instant::now();
                     if let Some(bgra_data) = dec.decode(&frame.data) {
+                        let decode_ms = t0.elapsed().as_millis();
+                        let t1 = std::time::Instant::now();
                         if let Some(ref mut vo) = video_output {
                             vo.present(bgra_data, w * 4);
+                        }
+                        let present_ms = t1.elapsed().as_millis();
+                        frame_count += 1;
+                        if frame_count <= 10 || frame_count % 300 == 0 {
+                            println!(
+                                "Frame {}: decode={}ms present={}ms",
+                                frame_count, decode_ms, present_ms
+                            );
                         }
                     }
                 }
