@@ -55,18 +55,41 @@ fn parse_avahi_output(output: &str) -> Vec<OmtSource> {
             continue;
         }
 
-        let name = fields[3];
+        let name = unescape_avahi(fields[3]);
         let address = fields[7];
         let port = fields[8];
 
         // Prefer IPv4 (skip IPv6 link-local)
-        if address.contains(':') && sources.contains_key(name) {
+        if address.contains(':') && sources.contains_key(&name) {
             continue;
         }
 
         let url = format!("omt://{}:{}", address, port);
-        sources.insert(name.to_string(), (name.to_string(), url));
+        sources.insert(name.clone(), (name, url));
     }
 
     sources.into_values().collect()
+}
+
+/// Decode avahi-browse escaped strings like `stephen-mini\032\040OBS\032Output\041`
+/// where `\DDD` is a decimal ASCII code.
+fn unescape_avahi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 3 < bytes.len() {
+            if let Ok(code) = std::str::from_utf8(&bytes[i + 1..i + 4])
+                .unwrap_or("")
+                .parse::<u8>()
+            {
+                out.push(code as char);
+                i += 4;
+                continue;
+            }
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out
 }
