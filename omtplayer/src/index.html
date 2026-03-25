@@ -35,200 +35,75 @@ body {
   min-height: 100vh;
 }
 
-.page {
-  max-width: 720px;
-  margin: 0 auto;
-  display: grid;
-  gap: 20px;
-}
+.page { max-width: 720px; margin: 0 auto; display: grid; gap: 20px; }
 
 .hero {
-  padding: 18px 20px;
-  border-radius: 18px;
+  padding: 18px 20px; border-radius: 18px;
   background: linear-gradient(135deg, rgba(255, 179, 71, 0.12), rgba(86, 212, 255, 0.08));
   border: 1px solid rgba(86, 212, 255, 0.18);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
   box-shadow: var(--shadow);
 }
 
-.kicker {
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--muted);
-  font-size: 11px;
-  margin: 0 0 6px;
-}
-
+.kicker { text-transform: uppercase; letter-spacing: 2px; color: var(--muted); font-size: 11px; margin: 0 0 6px; }
 h1 { font-size: 28px; margin: 0 0 6px; }
-
 .sub { margin: 0; color: var(--muted); font-size: 14px; }
 
 .toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
+  position: fixed; bottom: 24px; left: 50%;
   transform: translateX(-50%) translateY(80px);
-  padding: 12px 20px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--text);
-  background: var(--card);
-  border: 1px solid var(--border);
+  padding: 12px 20px; border-radius: 12px; font-weight: 600; font-size: 13px;
+  color: var(--text); background: var(--card); border: 1px solid var(--border);
   box-shadow: 0 16px 40px rgba(4, 8, 16, 0.6);
-  pointer-events: none;
-  opacity: 0;
+  pointer-events: none; opacity: 0;
   transition: transform 280ms ease, opacity 280ms ease;
-  z-index: 100;
-  max-width: 90vw;
-  text-align: center;
+  z-index: 100; max-width: 90vw; text-align: center;
 }
-
-.toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.success { border-color: rgba(110, 247, 199, 0.5); background: linear-gradient(135deg, rgba(110, 247, 199, 0.15), var(--card)); }
 .toast.error   { border-color: rgba(255, 107, 107, 0.5); background: linear-gradient(135deg, rgba(255, 107, 107, 0.15), var(--card)); }
 .toast.info    { border-color: rgba(86, 212, 255, 0.5);  background: linear-gradient(135deg, rgba(86, 212, 255, 0.15), var(--card)); }
 
 .card {
   background: linear-gradient(180deg, var(--card), var(--card-2));
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px 18px;
+  border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px;
   box-shadow: var(--shadow);
 }
+.card-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1.6px; color: var(--muted); margin-bottom: 10px; }
 
-.card-title {
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 1.6px;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-label {
-  display: block;
-  font-weight: 600;
-  color: var(--text);
-  font-size: 13px;
-}
-
-.help {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 6px;
-  line-height: 1.4;
-}
+label { display: block; font-weight: 600; color: var(--text); font-size: 13px; }
+.help { color: var(--muted); font-size: 12px; margin-top: 6px; line-height: 1.4; }
 
 select {
-  width: 100%;
-  padding: 10px 12px;
-  margin-top: 6px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #0c1219;
-  color: var(--text);
-  outline: none;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
-  font-family: inherit;
-  font-size: 14px;
+  width: 100%; padding: 10px 12px; margin-top: 6px; border-radius: 10px;
+  border: 1px solid var(--border); background: #0c1219; color: var(--text);
+  outline: none; transition: border-color 140ms ease, box-shadow 140ms ease;
+  font-family: inherit; font-size: 14px;
 }
+select:focus { border-color: rgba(86, 212, 255, 0.6); box-shadow: 0 0 0 3px rgba(86, 212, 255, 0.12); }
 
-select:focus {
-  border-color: rgba(86, 212, 255, 0.6);
-  box-shadow: 0 0 0 3px rgba(86, 212, 255, 0.12);
-}
-
-input[type=checkbox] {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--accent-2);
-}
-
+input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent-2); }
 .check-grid { display: grid; gap: 8px; margin-top: 8px; }
-
-.check-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--text);
-}
+.check-item { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; color: var(--text); }
 
 button {
   padding: 10px 16px;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #0b1119;
-  border: none;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 13px;
-  cursor: pointer;
-  box-shadow: 0 10px 24px rgba(86, 212, 255, 0.25);
-  font-family: inherit;
+  color: #0b1119; border: none; border-radius: 10px; font-weight: 700; font-size: 13px;
+  cursor: pointer; box-shadow: 0 10px 24px rgba(86, 212, 255, 0.25); font-family: inherit;
 }
-
 button:hover { transform: translateY(-1px); }
-
-button.ghost {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
-  box-shadow: none;
-}
-
-.btn-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 14px;
-}
+button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+.btn-row { display: flex; gap: 10px; margin-top: 14px; }
 
 .fade-in { animation: fadeIn 320ms ease-out; }
 .hidden { display: none !important; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; margin-top: 10px; border-radius: 3px; background: var(--border); outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); cursor: pointer; box-shadow: 0 2px 8px rgba(86, 212, 255, 0.3); }
 
-input[type=range] {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 6px;
-  margin-top: 10px;
-  border-radius: 3px;
-  background: var(--border);
-  outline: none;
-}
-
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(86, 212, 255, 0.3);
-}
-
-.volume-display {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--accent-2);
-  margin-top: 8px;
-}
-
-@media (max-width: 600px) {
-  .hero { flex-direction: column; align-items: flex-start; }
-}
+@media (max-width: 600px) { .hero { flex-direction: column; align-items: flex-start; } }
 </style>
 </head>
 <body>
@@ -236,38 +111,135 @@ input[type=range]::-webkit-slider-thumb {
   <header class="hero">
     <div>
       <div class="kicker">OMT Player</div>
-      <h1>Control Deck</h1>
-      <p class="sub">Stream receiver and audio output controls.</p>
+      <h1 data-i18n="title">Control Deck</h1>
+      <p class="sub" data-i18n="subtitle">Stream receiver and audio output controls.</p>
     </div>
     <div class="btn-row">
-      <button onclick="saveConfig()">Save changes</button>
-      <button class="ghost" onclick="loadAll()">Refresh</button>
+      <button onclick="saveConfig()" data-i18n="save">Save changes</button>
+      <button class="ghost" onclick="loadAll()" data-i18n="refresh">Refresh</button>
     </div>
   </header>
 
   <div class="card">
-    <div class="card-title">Source</div>
-    <label>Stream source</label>
+    <div class="card-title" data-i18n="source_title">Source</div>
+    <label data-i18n="source_label">Stream source</label>
     <select id="cboSource"></select>
-    <div class="help">Select the OMT stream to receive and play back.</div>
+    <div class="help" data-i18n="source_help">Select the OMT stream to receive and play back.</div>
   </div>
 
   <div class="card">
-    <div class="card-title">Audio Output Devices</div>
+    <div class="card-title" data-i18n="audio_title">Audio Output Devices</div>
     <div id="audioDevices" class="check-grid"></div>
-    <div class="help">Select one or more audio outputs for playback.</div>
+    <div class="help" data-i18n="audio_help">Select one or more audio outputs for playback.</div>
 
-    <label style="margin-top: 16px;">Volume: <span id="volDisplay">100%</span></label>
+    <label style="margin-top: 16px;" id="volLabel">Volume: <span id="volDisplay">100%</span></label>
     <input type="range" id="volume" min="0" max="200" step="1" value="100"
            oninput="document.getElementById('volDisplay').textContent = this.value + '%'"
            onchange="saveConfig()" />
-    <div class="help">0% = mute, 100% = original, 200% = 2x gain.</div>
+    <div class="help" data-i18n="vol_help">0% = mute, 100% = original, 200% = 2x gain.</div>
   </div>
 </div>
 
 <div id="toast" class="toast"></div>
 
 <script>
+// ── i18n ──────────────────────────────────────────────────────────────────
+const i18n = {
+  en: {
+    title: "Control Deck",
+    subtitle: "Stream receiver and audio output controls.",
+    save: "Save changes",
+    refresh: "Refresh",
+    source_title: "Source",
+    source_label: "Stream source",
+    source_help: "Select the OMT stream to receive and play back.",
+    audio_title: "Audio Output Devices",
+    audio_help: "Select one or more audio outputs for playback.",
+    vol_label: "Volume",
+    vol_help: "0% = mute, 100% = original, 200% = 2x gain.",
+    refreshed: "Refreshed",
+    saved: "Saved. Changes applied.",
+    save_fail: "Failed to save",
+    load_fail: "Failed to load",
+  },
+  ko: {
+    title: "컨트롤 데크",
+    subtitle: "스트림 수신 및 오디오 출력 설정",
+    save: "저장",
+    refresh: "새로고침",
+    source_title: "소스",
+    source_label: "스트림 소스",
+    source_help: "수신할 OMT 스트림을 선택하세요.",
+    audio_title: "오디오 출력 장치",
+    audio_help: "하나 이상의 오디오 출력을 선택하세요.",
+    vol_label: "볼륨",
+    vol_help: "0% = 음소거, 100% = 원본, 200% = 2배 증폭",
+    refreshed: "새로고침 완료",
+    saved: "저장 완료",
+    save_fail: "저장 실패",
+    load_fail: "불러오기 실패",
+  },
+  ja: {
+    title: "コントロールデッキ",
+    subtitle: "ストリーム受信とオーディオ出力の設定",
+    save: "保存",
+    refresh: "更新",
+    source_title: "ソース",
+    source_label: "ストリームソース",
+    source_help: "受信するOMTストリームを選択してください。",
+    audio_title: "オーディオ出力デバイス",
+    audio_help: "再生するオーディオ出力を選択してください。",
+    vol_label: "音量",
+    vol_help: "0% = ミュート、100% = 原音、200% = 2倍ゲイン",
+    refreshed: "更新しました",
+    saved: "保存しました",
+    save_fail: "保存に失敗しました",
+    load_fail: "読み込みに失敗しました",
+  },
+  es: {
+    title: "Panel de Control",
+    subtitle: "Receptor de stream y controles de salida de audio.",
+    save: "Guardar",
+    refresh: "Actualizar",
+    source_title: "Fuente",
+    source_label: "Fuente de stream",
+    source_help: "Seleccione el stream OMT para recibir y reproducir.",
+    audio_title: "Dispositivos de Salida de Audio",
+    audio_help: "Seleccione una o mas salidas de audio para la reproduccion.",
+    vol_label: "Volumen",
+    vol_help: "0% = silencio, 100% = original, 200% = 2x ganancia.",
+    refreshed: "Actualizado",
+    saved: "Guardado. Cambios aplicados.",
+    save_fail: "Error al guardar",
+    load_fail: "Error al cargar",
+  },
+};
+
+let lang = 'en';
+function detectLang() {
+  const nav = (navigator.language || '').toLowerCase();
+  if (nav.startsWith('ko')) return 'ko';
+  if (nav.startsWith('ja')) return 'ja';
+  if (nav.startsWith('es')) return 'es';
+  return 'en';
+}
+
+function t(key) {
+  return (i18n[lang] && i18n[lang][key]) || i18n.en[key] || key;
+}
+
+function applyI18n() {
+  lang = detectLang();
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  // Volume label needs special handling (includes dynamic value)
+  const volDisplay = document.getElementById('volDisplay');
+  const pct = volDisplay ? volDisplay.textContent : '100%';
+  document.getElementById('volLabel').innerHTML = t('vol_label') + ': <span id="volDisplay">' + pct + '</span>';
+}
+
+// ── App ───────────────────────────────────────────────────────────────────
 let currentConfig = null;
 
 async function loadConfig() {
@@ -282,18 +254,14 @@ async function loadSources() {
   sel.innerHTML = '';
 
   const current = currentConfig ? currentConfig.source : 'None';
-
-  // Build source list: [{name, url}]
   const sourceMap = new Map();
   for (const s of data.sources) {
     sourceMap.set(s.url, s.name);
   }
-  // Include current source even if not discovered
   if (current && current !== 'None' && !sourceMap.has(current)) {
     sourceMap.set(current, current);
   }
 
-  // "None" option first
   const noneOpt = document.createElement('option');
   noneOpt.value = 'None';
   noneOpt.textContent = 'None';
@@ -344,9 +312,9 @@ async function loadAll() {
     await loadSources();
     await loadDevices();
     loadVolume();
-    toast('Refreshed', 'info');
+    toast(t('refreshed'), 'info');
   } catch (e) {
-    toast('Failed to load: ' + e.message, 'error');
+    toast(t('load_fail') + ': ' + e.message, 'error');
   }
 }
 
@@ -356,7 +324,6 @@ async function saveConfig() {
   document.querySelectorAll('#audioDevices input[type=checkbox]').forEach(cb => {
     if (cb.checked) audioDevices.push(cb.value);
   });
-  // No fallback — user must explicitly select devices
 
   const volPct = Number(document.getElementById('volume').value);
   const payload = {
@@ -373,9 +340,9 @@ async function saveConfig() {
       body: JSON.stringify(payload)
     });
     const result = await res.json();
-    toast(result.message || 'Saved', result.ok ? 'success' : 'error');
+    toast(result.ok ? t('saved') : (result.message || t('save_fail')), result.ok ? 'success' : 'error');
   } catch (e) {
-    toast('Failed to save: ' + e.message, 'error');
+    toast(t('save_fail') + ': ' + e.message, 'error');
   }
 }
 
@@ -384,13 +351,13 @@ function toast(msg, type) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.className = 'toast ' + (type || 'info');
-  // Force reflow so re-triggering works
   void el.offsetWidth;
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
+applyI18n();
 loadAll();
 </script>
 </body>
