@@ -110,20 +110,21 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px;
 <div class="page fade-in">
   <header class="hero">
     <div>
-      <div class="kicker">OMT Player
-        <select id="langSelect" onchange="switchLang(this.value)" style="margin-left:10px;padding:2px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0;">
-          <option value="en">EN</option>
-          <option value="ko">KO</option>
-          <option value="ja">JA</option>
-          <option value="es">ES</option>
-        </select>
-      </div>
+      <div class="kicker">OMT Player</div>
       <h1 data-i18n="title">Control Deck</h1>
       <p class="sub" data-i18n="subtitle">Stream receiver and audio output controls.</p>
     </div>
-    <div class="btn-row">
-      <button onclick="saveConfig()" data-i18n="save">Save changes</button>
-      <button class="ghost" onclick="loadAll()" data-i18n="refresh">Refresh</button>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+      <select id="langSelect" onchange="switchLang(this.value)" style="padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:inherit;cursor:pointer;">
+        <option value="en">English</option>
+        <option value="ko">한국어</option>
+        <option value="ja">日本語</option>
+        <option value="es">Español</option>
+      </select>
+      <div class="btn-row" style="margin-top:0;">
+        <button onclick="saveConfig()" data-i18n="save">Save changes</button>
+        <button class="ghost" onclick="loadAll()" data-i18n="refresh">Refresh</button>
+      </div>
     </div>
   </header>
 
