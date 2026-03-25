@@ -162,6 +162,7 @@ async fn main() -> Result<()> {
                 if let Some(ref video_header) = frame.video_header {
                     let w = video_header.width as u32;
                     let h = video_header.height as u32;
+                    let codec = video_header.codec;
 
                     if w != current_width || h != current_height {
                         current_width = w;
@@ -171,9 +172,15 @@ async fn main() -> Result<()> {
                         } else {
                             60.0
                         };
-                        println!("New format: {}x{} @ {:.2}fps", w, h, frame_rate);
+                        println!("Video: {}x{} @ {:.2}fps codec={}", w, h, frame_rate, codec);
                         vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
+                        if vmx_dec.is_none() {
+                            eprintln!("Video: VMX decoder creation failed");
+                        }
                         video_output = video::VideoOutput::new(w, h, frame_rate);
+                        if video_output.is_none() {
+                            eprintln!("Video: display output creation failed");
+                        }
                     }
 
                     if let Some(ref mut dec) = vmx_dec {

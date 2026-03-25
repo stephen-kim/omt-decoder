@@ -340,33 +340,36 @@ pub struct VideoOutput {
 
 impl VideoOutput {
     pub fn new(width: u32, height: u32, frame_rate: f32) -> Option<Self> {
-        let device_path = b"/dev/dri/card1\0";
-        let fd = unsafe { open(device_path.as_ptr(), O_RDWR) };
+        // Try card0, card1, card2
+        let fd = try_open_drm_device();
         if fd < 0 {
-            eprintln!("Failed to open /dev/dri/card1");
-            return None;
-        }
-
-        // Check dumb buffer support
-        let mut cap: u64 = 0;
-        if unsafe { drmGetCap(fd, DRM_CAP_DUMB_BUFFER, &mut cap) } != 0 || cap == 0 {
-            eprintln!("DRM device does not support dumb buffers");
-            unsafe { close(fd); }
+            eprintln!("VideoOutput: no usable DRM device found");
             return None;
         }
 
         // Find connector and mode
-        let (connector_id, encoder_crtc_id, mode) =
-            find_connector_and_mode(fd, width, height, frame_rate)?;
+        let found = find_connector_and_mode(fd, width, height, frame_rate);
+        if found.is_none() {
+            eprintln!("VideoOutput: no matching display mode for {}x{} @ {:.1}fps", width, height, frame_rate);
+            unsafe { close(fd); }
+            return None;
+        }
+        let (connector_id, encoder_crtc_id, mode) = found.unwrap();
 
         // Create triple-buffered framebuffers
         let mode_w = mode.hdisplay as u32;
         let mode_h = mode.vdisplay as u32;
+        println!("VideoOutput: mode {}x{} @ {}Hz", mode_w, mode_h, mode.vrefresh);
         let mut buffers = Vec::new();
         let mut write_queue = VecDeque::new();
         for i in 0..3 {
-            let buf = DrmBuffer::new(fd, mode_w, mode_h)?;
-            buffers.push(buf);
+            let buf = DrmBuffer::new(fd, mode_w, mode_h);
+            if buf.is_none() {
+                eprintln!("VideoOutput: failed to create DRM buffer {}", i);
+                unsafe { close(fd); }
+                return None;
+            }
+            buffers.push(buf.unwrap());
             write_queue.push_back(i);
         }
 
@@ -566,6 +569,25 @@ fn events_thread(
             cvar.notify_one();
         }
     }
+}
+
+fn try_open_drm_device() -> RawFd {
+    for i in 0..4 {
+        let path = format!("/dev/dri/card{}\0", i);
+        let fd = unsafe { open(path.as_ptr(), O_RDWR) };
+        if fd < 0 {
+            continue;
+        }
+        let mut cap: u64 = 0;
+        if unsafe { drmGetCap(fd, DRM_CAP_DUMB_BUFFER, &mut cap) } != 0 || cap == 0 {
+            eprintln!("VideoOutput: /dev/dri/card{} no dumb buffer support, skipping", i);
+            unsafe { close(fd); }
+            continue;
+        }
+        println!("VideoOutput: opened /dev/dri/card{}", i);
+        return fd;
+    }
+    -1
 }
 
 fn find_connector_and_mode(
