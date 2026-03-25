@@ -109,13 +109,6 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                 println!("Source changed: {}", new_settings.source);
                 current_source = new_settings.source.clone();
                 conn = None;
-                #[cfg(target_os = "linux")]
-                {
-                    video_output = None;
-                    vmx_dec = None;
-                    current_width = 0;
-                    current_height = 0;
-                }
                 if current_source != "None" && !current_source.is_empty() {
                     conn = try_connect(&current_source);
                 }
