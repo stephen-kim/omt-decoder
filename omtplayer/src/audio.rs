@@ -4,6 +4,9 @@ use std::sync::{Arc, Mutex};
 
 // ── ALSA FFI (matching C# P/Invoke exactly) ───────────────────────────────
 
+#[link(name = "asound")]
+extern "C" {}
+
 const SND_PCM_STREAM_PLAYBACK: libc::c_int = 0;
 const SND_PCM_FORMAT_FLOAT_LE: libc::c_int = 14;
 const SND_PCM_ACCESS_RW_INTERLEAVED: libc::c_int = 3;

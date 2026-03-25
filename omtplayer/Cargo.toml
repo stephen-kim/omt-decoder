@@ -16,7 +16,6 @@ bytes = "1.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libvmx-sys = { path = "../libvmx-sys" }
-alsa = "0.7"
 libc = "0.2"
 nix = { version = "0.29", features = ["ioctl", "mman", "fs"] }
 regex-lite = "0.1"
