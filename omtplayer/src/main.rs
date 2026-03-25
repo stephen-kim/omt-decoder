@@ -83,21 +83,19 @@ async fn main() -> Result<()> {
 fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Settings>) {
     #[cfg(target_os = "linux")]
     let mut audio_player = audio::AudioPlayer::new(&initial_settings.audio_devices, initial_settings.volume);
-    #[cfg(target_os = "linux")]
-    let mut video_output: Option<video::VideoOutput> = None;
-    #[cfg(target_os = "linux")]
-    let mut vmx_dec: Option<vmx_decoder::VmxDecoder> = None;
-    #[cfg(target_os = "linux")]
-    let mut current_width: u32 = 0;
-    #[cfg(target_os = "linux")]
-    let mut current_height: u32 = 0;
 
     let mut current_source = initial_settings.source.clone();
     let mut conn: Option<receiver::OMTConnection> = None;
-    let mut frame_count: u64 = 0;
-    let mut fps_timer = std::time::Instant::now();
 
-    // Initial connection
+    // Video decode+present on a separate thread so it never blocks audio
+    let (video_tx, video_rx) = std::sync::mpsc::sync_channel::<libomtnet::OMTFrame>(4);
+    std::thread::Builder::new()
+        .name("video".into())
+        .spawn(move || {
+            video_thread(video_rx);
+        })
+        .expect("failed to spawn video thread");
+
     if current_source != "None" && !current_source.is_empty() {
         conn = try_connect(&current_source);
     }
@@ -167,7 +165,22 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             }
         };
 
-        #[cfg(target_os = "linux")]
+        // Send video to decode thread (non-blocking, drop if full)
+        let _ = video_tx.try_send(frame);
+    }
+}
+
+/// Dedicated video decode + DRM present thread.
+#[cfg(target_os = "linux")]
+fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
+    let mut video_output: Option<video::VideoOutput> = None;
+    let mut vmx_dec: Option<vmx_decoder::VmxDecoder> = None;
+    let mut current_width: u32 = 0;
+    let mut current_height: u32 = 0;
+    let mut frame_count: u64 = 0;
+    let mut fps_timer = std::time::Instant::now();
+
+    while let Ok(frame) = rx.recv() {
         if let Some(ref vh) = frame.video_header {
             let w = vh.width as u32;
             let h = vh.height as u32;
@@ -182,20 +195,13 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                 };
                 println!("Video: {}x{} @ {:.2}fps codec=0x{:08X}", w, h, frame_rate, vh.codec);
                 vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
-                if vmx_dec.is_none() {
-                    eprintln!("Video: VMX decoder creation failed");
-                }
                 video_output = video::VideoOutput::new(w, h, frame_rate);
-                if video_output.is_none() {
-                    eprintln!("Video: display output creation failed");
-                }
             }
 
             frame_count += 1;
             if frame_count % 300 == 0 {
                 let elapsed = fps_timer.elapsed().as_secs_f64();
-                let fps = 300.0 / elapsed;
-                println!("Received {}: recv_fps={:.1}", frame_count, fps);
+                println!("Video {}: fps={:.1}", frame_count, 300.0 / elapsed);
                 fps_timer = std::time::Instant::now();
             }
 
@@ -208,6 +214,11 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             }
         }
     }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
+    while let Ok(_) = rx.recv() {}
 }
 
 fn try_connect(source: &str) -> Option<receiver::OMTConnection> {
