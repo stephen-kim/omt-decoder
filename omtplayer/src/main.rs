@@ -198,16 +198,12 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
 
                     if let Some(ref mut dec) = vmx_dec {
                         let t0 = std::time::Instant::now();
-                        // TEST: skip VMX decode entirely
-                        let bgra_data_opt: Option<&[u8]> = None;
-                        if let Some(bgra_data) = bgra_data_opt {
+                        if let Some(bgra_data) = dec.decode(&frame.data) {
                             let decode_ms = t0.elapsed().as_millis();
                             let t1 = std::time::Instant::now();
-                            // TEST: skip DRM present to isolate crash source
-                            let _ = bgra_data;
-                            //if let Some(ref mut vo) = video_output {
-                            //    vo.present(bgra_data, w * 4);
-                            //}
+                            if let Some(ref mut vo) = video_output {
+                                vo.present(bgra_data, w * 4);
+                            }
                             let present_ms = t1.elapsed().as_millis();
                             if frame_count <= 10 || frame_count % 300 == 0 {
                                 println!(

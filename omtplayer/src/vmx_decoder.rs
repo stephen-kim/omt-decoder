@@ -30,7 +30,10 @@ impl VmxDecoder {
         if instance.is_null() {
             return None;
         }
-        let buf_size = (width * height * 4) as usize;
+        // VMX codec works in 16-row slices. If height is not a multiple of 16,
+        // the decoder writes up to the next multiple. Allocate enough to avoid overflow.
+        let aligned_height = (height + 15) & !15;
+        let buf_size = (width * aligned_height * 4) as usize;
         Some(VmxDecoder {
             instance,
             width,
