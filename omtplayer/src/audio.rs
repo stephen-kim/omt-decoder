@@ -158,7 +158,7 @@ impl AudioPlayer {
 
         let mut queue = self.queue.lock().unwrap();
         queue.push_back(interleaved);
-        while queue.len() > 10 {
+        while queue.len() > 20 {
             queue.pop_front();
         }
     }
@@ -203,7 +203,8 @@ fn open_pcm(name: &str, channels: u32, sample_rate: u32) -> Result<PcmHandle, St
         return Err(format!("snd_pcm_open: {}", alsa_error(err)));
     }
 
-    // Matches C#: snd_pcm_set_params(handle, FLOAT_LE, RW_INTERLEAVED, ch, rate, 1, 50000)
+    // Higher latency than C# (50ms) because our single-thread loop blocks
+    // audio enqueue during video decode (~7ms). USB DACs need the extra buffer.
     let err = unsafe {
         snd_pcm_set_params(
             handle,
@@ -211,8 +212,8 @@ fn open_pcm(name: &str, channels: u32, sample_rate: u32) -> Result<PcmHandle, St
             SND_PCM_ACCESS_RW_INTERLEAVED,
             channels,
             sample_rate,
-            1,     // soft_resample = true
-            50000, // latency = 50ms
+            1,      // soft_resample = true
+            200000, // latency = 200ms
         )
     };
     if err < 0 {
