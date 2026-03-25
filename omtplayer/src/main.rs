@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
     });
 
     let shared_settings = Arc::new(RwLock::new(settings.clone()));
-    let (settings_tx, mut settings_rx) = watch::channel(settings.clone());
+    let (settings_tx, settings_rx) = watch::channel(settings.clone());
 
     // Start discovery
     let sources = discovery::start_discovery();
@@ -54,93 +54,21 @@ async fn main() -> Result<()> {
             eprintln!("Web server error: {}", e);
         }
     });
-
     println!("Web server on port {}", web_port);
 
-    // Main receive loop
-    let mut current_source = settings.source.clone();
-    let mut audio_rx: Option<tokio::sync::mpsc::Receiver<libomtnet::OMTFrame>> = None;
-    let mut _recv_cancel: Option<tokio::sync::watch::Sender<bool>> = None;
-    // Video thread handle — dropping it signals the thread to stop
-    let mut _video_thread: Option<std::thread::JoinHandle<()>> = None;
+    // Spawn the player loop on a dedicated OS thread (matches C# synchronous main loop)
+    let player_settings = settings.clone();
+    let player_settings_rx = settings_rx.clone();
+    let player_handle = std::thread::Builder::new()
+        .name("player".into())
+        .spawn(move || {
+            player_loop(player_settings, player_settings_rx);
+        })
+        .expect("failed to spawn player thread");
 
-    if current_source != "None" && !current_source.is_empty() {
-        if let Some(h) = receiver::start_receiver(&current_source) {
-            audio_rx = Some(h.audio_rx);
-            _video_thread = Some(spawn_video_thread(h.video_rx));
-            _recv_cancel = Some(h._cancel);
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    let mut audio_player = audio::AudioPlayer::new(&settings.audio_devices);
-
-    loop {
-        // Drain all available audio frames first (non-blocking)
-        #[cfg(target_os = "linux")]
-        if let Some(ref mut rx) = audio_rx {
-            while let Ok(frame) = rx.try_recv() {
-                if let Some(ref audio_header) = frame.audio_header {
-                    audio_player.enqueue(
-                        &frame.data,
-                        audio_header.channels as u32,
-                        audio_header.samples_per_channel as u32,
-                        audio_header.sample_rate as u32,
-                    );
-                }
-            }
-        }
-
-        tokio::select! {
-            Ok(()) = settings_rx.changed() => {
-                let new_settings = settings_rx.borrow_and_update().clone();
-
-                if new_settings.source != current_source {
-                    println!("Source changed: {}", new_settings.source);
-                    current_source = new_settings.source.clone();
-                    audio_rx = None;
-                    _video_thread = None; // drop old thread
-                    _recv_cancel = None;
-                    if current_source != "None" && !current_source.is_empty() {
-                        if let Some(h) = receiver::start_receiver(&current_source) {
-                            audio_rx = Some(h.audio_rx);
-                            _video_thread = Some(spawn_video_thread(h.video_rx));
-                            _recv_cancel = Some(h._cancel);
-                        }
-                    }
-                }
-
-                #[cfg(target_os = "linux")]
-                {
-                    audio_player.set_devices(&new_settings.audio_devices);
-                }
-            }
-            _ = tokio::signal::ctrl_c() => {
-                println!("Shutting down...");
-                break;
-            }
-            // Audio: always process promptly
-            Some(frame) = async {
-                match &mut audio_rx {
-                    Some(rx) => rx.recv().await,
-                    None => {
-                        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                        None
-                    }
-                }
-            } => {
-                #[cfg(target_os = "linux")]
-                if let Some(ref audio_header) = frame.audio_header {
-                    audio_player.enqueue(
-                        &frame.data,
-                        audio_header.channels as u32,
-                        audio_header.samples_per_channel as u32,
-                        audio_header.sample_rate as u32,
-                    );
-                }
-            }
-        }
-    }
+    // Main tokio thread just waits for shutdown
+    tokio::signal::ctrl_c().await?;
+    println!("Shutting down...");
 
     // Save settings on exit
     let final_settings = shared_settings.read().await;
@@ -151,66 +79,121 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Spawn a dedicated OS thread for video decode + DRM present.
-/// This keeps CPU-heavy VMX decoding off the tokio async runtime.
-fn spawn_video_thread(
-    mut video_rx: tokio::sync::mpsc::Receiver<libomtnet::OMTFrame>,
-) -> std::thread::JoinHandle<()> {
-    std::thread::Builder::new()
-        .name("video".into())
-        .spawn(move || {
+/// Synchronous player loop — mirrors the C# Program.Main() while loop.
+/// Runs on its own OS thread, no tokio involved.
+fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Settings>) {
+    let mut current_source = initial_settings.source.clone();
+    let mut recv: Option<receiver::ReceiverHandle> = None;
+
+    #[cfg(target_os = "linux")]
+    let mut audio_player = audio::AudioPlayer::new(&initial_settings.audio_devices);
+
+    #[cfg(target_os = "linux")]
+    let mut video_output: Option<video::VideoOutput> = None;
+    #[cfg(target_os = "linux")]
+    let mut vmx_dec: Option<vmx_decoder::VmxDecoder> = None;
+    #[cfg(target_os = "linux")]
+    let mut current_width: u32 = 0;
+    #[cfg(target_os = "linux")]
+    let mut current_height: u32 = 0;
+
+    if current_source != "None" && !current_source.is_empty() {
+        recv = receiver::start_receiver(&current_source);
+    }
+
+    loop {
+        // Check for settings changes (non-blocking)
+        if settings_rx.has_changed().unwrap_or(false) {
+            let new_settings = settings_rx.borrow_and_update().clone();
+
+            if new_settings.source != current_source {
+                println!("Source changed: {}", new_settings.source);
+                current_source = new_settings.source.clone();
+                recv = None; // drop old receiver
+                #[cfg(target_os = "linux")]
+                {
+                    video_output = None;
+                    vmx_dec = None;
+                    current_width = 0;
+                    current_height = 0;
+                }
+                if current_source != "None" && !current_source.is_empty() {
+                    recv = receiver::start_receiver(&current_source);
+                }
+            }
+
             #[cfg(target_os = "linux")]
             {
-                let mut video_output: Option<video::VideoOutput> = None;
-                let mut vmx_dec: Option<vmx_decoder::VmxDecoder> = None;
-                let mut current_width: u32 = 0;
-                let mut current_height: u32 = 0;
+                audio_player.set_devices(&new_settings.audio_devices);
+            }
+        }
 
-                while let Some(frame) = video_rx.blocking_recv() {
-                    if let Some(ref video_header) = frame.video_header {
-                        let w = video_header.width as u32;
-                        let h = video_header.height as u32;
+        let Some(ref r) = recv else {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            continue;
+        };
 
-                        if w != current_width || h != current_height {
-                            current_width = w;
-                            current_height = h;
-                            let frame_rate = if video_header.frame_rate_d > 0 {
-                                video_header.frame_rate_n as f32
-                                    / video_header.frame_rate_d as f32
-                            } else {
-                                60.0
-                            };
-                            println!(
-                                "Video: {}x{} @ {:.2}fps codec=0x{:08X}",
-                                w, h, frame_rate, video_header.codec
-                            );
-                            vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
-                            if vmx_dec.is_none() {
-                                eprintln!("Video: VMX decoder creation failed");
-                            }
-                            video_output = video::VideoOutput::new(w, h, frame_rate);
-                            if video_output.is_none() {
-                                eprintln!("Video: display output creation failed");
-                            }
-                        }
+        // Audio: drain all available frames (non-blocking) — matches C# Receive(Audio, 0)
+        let mut got_audio = false;
+        #[cfg(target_os = "linux")]
+        while let Ok(frame) = r.audio_rx.try_recv() {
+            if let Some(ref ah) = frame.audio_header {
+                audio_player.enqueue(
+                    &frame.data,
+                    ah.channels as u32,
+                    ah.samples_per_channel as u32,
+                    ah.sample_rate as u32,
+                );
+                got_audio = true;
+            }
+        }
 
-                        if let Some(ref mut dec) = vmx_dec {
-                            if let Some(bgra_data) = dec.decode(&frame.data) {
-                                if let Some(ref mut vo) = video_output {
-                                    vo.present(&bgra_data, w * 4);
-                                }
-                            }
+        // Video: if we got audio, non-blocking; otherwise wait with timeout
+        // — matches C# Receive(Video, gotAudio ? 0 : 500)
+        let video_frame = if got_audio {
+            r.video_rx.try_recv().ok()
+        } else {
+            r.video_rx
+                .recv_timeout(std::time::Duration::from_millis(500))
+                .ok()
+        };
+
+        #[cfg(target_os = "linux")]
+        if let Some(frame) = video_frame {
+            if let Some(ref vh) = frame.video_header {
+                let w = vh.width as u32;
+                let h = vh.height as u32;
+
+                if w != current_width || h != current_height {
+                    current_width = w;
+                    current_height = h;
+                    let frame_rate = if vh.frame_rate_d > 0 {
+                        vh.frame_rate_n as f32 / vh.frame_rate_d as f32
+                    } else {
+                        60.0
+                    };
+                    println!(
+                        "Video: {}x{} @ {:.2}fps codec=0x{:08X}",
+                        w, h, frame_rate, vh.codec
+                    );
+                    vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
+                    if vmx_dec.is_none() {
+                        eprintln!("Video: VMX decoder creation failed");
+                    }
+                    video_output = video::VideoOutput::new(w, h, frame_rate);
+                    if video_output.is_none() {
+                        eprintln!("Video: display output creation failed");
+                    }
+                }
+
+                if let Some(ref mut dec) = vmx_dec {
+                    if let Some(bgra_data) = dec.decode(&frame.data) {
+                        if let Some(ref mut vo) = video_output {
+                            vo.present(bgra_data, w * 4);
                         }
                     }
                 }
-                println!("Video thread exiting");
             }
-
-            #[cfg(not(target_os = "linux"))]
-            {
-                // On non-Linux, just drain frames
-                while let Some(_) = video_rx.blocking_recv() {}
-            }
-        })
-        .expect("failed to spawn video thread")
+        }
+    }
 }
