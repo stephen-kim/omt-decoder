@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use libomtnet::{OMTClient, OMTFrame, OMTFrameType};
 use tokio::sync::mpsc;
 
@@ -28,8 +29,12 @@ pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
             println!("Connecting to {}...", addr);
             let client = OMTClient::connect(&addr).await;
             let mut client = match client {
-                Ok(c) => {
+                Ok(mut c) => {
                     println!("Connected to {}", addr);
+                    // Subscribe to video, audio, and metadata
+                    if let Err(e) = send_subscribe(&mut c).await {
+                        eprintln!("Failed to send subscriptions: {}", e);
+                    }
                     c
                 }
                 Err(e) => {
@@ -105,4 +110,27 @@ pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
         video_rx,
         _cancel: cancel_tx,
     })
+}
+
+/// Build and send an OMT metadata frame with the given XML payload.
+fn make_metadata_frame(xml: &str) -> OMTFrame {
+    let mut frame = OMTFrame::new(OMTFrameType::Metadata);
+    frame.data = Bytes::from(xml.to_string());
+    frame.update_data_length();
+    frame
+}
+
+/// Send subscription messages so the server starts streaming frames.
+async fn send_subscribe(client: &mut OMTClient) -> Result<(), std::io::Error> {
+    client
+        .send(make_metadata_frame(r#"<OMTSubscribe Video="true" />"#))
+        .await?;
+    client
+        .send(make_metadata_frame(r#"<OMTSubscribe Audio="true" />"#))
+        .await?;
+    client
+        .send(make_metadata_frame(r#"<OMTSubscribe Metadata="true" />"#))
+        .await?;
+    println!("Subscriptions sent");
+    Ok(())
 }
