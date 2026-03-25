@@ -78,15 +78,23 @@ fn unescape_avahi(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'\\' && i + 3 < bytes.len() {
-            if let Ok(code) = std::str::from_utf8(&bytes[i + 1..i + 4])
-                .unwrap_or("")
-                .parse::<u8>()
-            {
-                out.push(code as char);
-                i += 4;
-                continue;
+        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+            // Try \DDD decimal escape (exactly 3 digits)
+            if i + 3 < bytes.len() {
+                if let Ok(code) = std::str::from_utf8(&bytes[i + 1..i + 4])
+                    .unwrap_or("")
+                    .parse::<u8>()
+                {
+                    out.push(code as char);
+                    i += 4;
+                    continue;
+                }
             }
+            // Not a decimal escape — skip the backslash, keep the next char
+            i += 1;
+            out.push(bytes[i] as char);
+            i += 1;
+            continue;
         }
         out.push(bytes[i] as char);
         i += 1;
