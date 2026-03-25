@@ -2,7 +2,7 @@ use libc::{c_int, c_ulong, c_void};
 use std::collections::VecDeque;
 use std::os::fd::RawFd;
 use std::ptr;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 
 // ── DRM constants ──────────────────────────────────────────────────────────
 
@@ -327,15 +327,13 @@ impl Drop for DrmBuffer {
 pub struct VideoOutput {
     fd: RawFd,
     crtc_id: u32,
-    connector_id: u32,
-    mode: DrmModeModeInfo,
     buffers: Vec<DrmBuffer>,
     write_queue: VecDeque<usize>,
     present_queue: VecDeque<usize>,
     front_buffer: Option<usize>,
     present_empty: bool,
     events_running: Arc<Mutex<bool>>,
-    flip_notify: Arc<(Mutex<Option<u32>>, Condvar)>,
+    flip_rx: std_mpsc::Receiver<u32>,
 }
 
 impl VideoOutput {
@@ -396,15 +394,17 @@ impl VideoOutput {
         }
 
         let events_running = Arc::new(Mutex::new(true));
-        let flip_notify = Arc::new((Mutex::new(None::<u32>), Condvar::new()));
+        let (flip_tx, flip_rx) = std_mpsc::sync_channel::<u32>(4);
 
         // Start events thread
         let fd_clone = fd;
         let running_clone = events_running.clone();
-        let notify_clone = flip_notify.clone();
-        std::thread::spawn(move || {
-            events_thread(fd_clone, running_clone, notify_clone);
-        });
+        std::thread::Builder::new()
+            .name("drm-events".into())
+            .spawn(move || {
+                events_thread(fd_clone, running_clone, flip_tx);
+            })
+            .expect("failed to spawn DRM events thread");
 
         // Do initial flip
         let fb_id = buffers[first_idx].fb_id;
@@ -421,15 +421,13 @@ impl VideoOutput {
         let vo = VideoOutput {
             fd,
             crtc_id: encoder_crtc_id,
-            connector_id,
-            mode,
             buffers,
             write_queue,
             present_queue: VecDeque::new(),
             front_buffer: Some(first_idx),
             present_empty: false,
             events_running,
-            flip_notify,
+            flip_rx,
         };
 
         Some(vo)
@@ -452,32 +450,23 @@ impl VideoOutput {
     }
 
     fn process_flip_events(&mut self) {
-        loop {
-            let flipped = {
-                let mut guard = self.flip_notify.0.lock().unwrap();
-                guard.take()
-            };
-            match flipped {
-                Some(fb_id) => {
-                    // Return front buffer to write queue
-                    if let Some(front) = self.front_buffer.take() {
-                        self.write_queue.push_back(front);
-                    }
-                    // Find which buffer was flipped
-                    for (i, buf) in self.buffers.iter().enumerate() {
-                        if buf.fb_id == fb_id {
-                            self.front_buffer = Some(i);
-                            break;
-                        }
-                    }
-                    // Present next queued buffer
-                    if let Some(next) = self.present_queue.pop_front() {
-                        self.flip(next);
-                    } else {
-                        self.present_empty = true;
-                    }
+        while let Ok(fb_id) = self.flip_rx.try_recv() {
+            // Return front buffer to write queue
+            if let Some(front) = self.front_buffer.take() {
+                self.write_queue.push_back(front);
+            }
+            // Find which buffer was flipped
+            for (i, buf) in self.buffers.iter().enumerate() {
+                if buf.fb_id == fb_id {
+                    self.front_buffer = Some(i);
+                    break;
                 }
-                None => break,
+            }
+            // Present next queued buffer
+            if let Some(next) = self.present_queue.pop_front() {
+                self.flip(next);
+            } else {
+                self.present_empty = true;
             }
         }
     }
@@ -511,27 +500,36 @@ impl Drop for VideoOutput {
     }
 }
 
+/// We need to pass the SyncSender into the C callback. Since drmHandleEvent
+/// calls the callback synchronously on the same thread, a thread-local is safe.
+thread_local! {
+    static FLIP_TX: std::cell::RefCell<Option<std_mpsc::SyncSender<u32>>> = std::cell::RefCell::new(None);
+}
+
+unsafe extern "C" fn flip_handler(
+    _fd: c_int,
+    _seq: u32,
+    _tv_sec: u32,
+    _tv_usec: u32,
+    user_data: *mut c_void,
+) {
+    let fb_id = user_data as u32;
+    FLIP_TX.with(|cell| {
+        if let Some(ref tx) = *cell.borrow() {
+            let _ = tx.try_send(fb_id);
+        }
+    });
+}
+
 fn events_thread(
     fd: RawFd,
     running: Arc<Mutex<bool>>,
-    notify: Arc<(Mutex<Option<u32>>, Condvar)>,
+    flip_tx: std_mpsc::SyncSender<u32>,
 ) {
-    unsafe extern "C" fn flip_handler(
-        _fd: c_int,
-        _seq: u32,
-        _tv_sec: u32,
-        _tv_usec: u32,
-        user_data: *mut c_void,
-    ) {
-        let fb_id = user_data as u32;
-        // We stash the fb_id in a thread-local to pass it out.
-        // This is safe because drmHandleEvent is called synchronously.
-        LAST_FLIP_FB_ID.with(|cell| cell.set(fb_id));
-    }
-
-    thread_local! {
-        static LAST_FLIP_FB_ID: std::cell::Cell<u32> = std::cell::Cell::new(0);
-    }
+    // Store sender in thread-local so the C callback can use it
+    FLIP_TX.with(|cell| {
+        *cell.borrow_mut() = Some(flip_tx);
+    });
 
     let mut ctx = DrmEventContext {
         version: DRM_EVENT_CONTEXT_VERSION,
@@ -557,16 +555,8 @@ fn events_thread(
             continue;
         }
 
-        LAST_FLIP_FB_ID.with(|cell| cell.set(0));
         unsafe {
             drmHandleEvent(fd, &mut ctx);
-        }
-        let fb_id = LAST_FLIP_FB_ID.with(|cell| cell.get());
-        if fb_id != 0 {
-            let (lock, cvar) = &*notify;
-            let mut guard = lock.lock().unwrap();
-            *guard = Some(fb_id);
-            cvar.notify_one();
         }
     }
 }
