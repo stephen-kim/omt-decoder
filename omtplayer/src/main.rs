@@ -201,9 +201,11 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                         if let Some(bgra_data) = dec.decode(&frame.data) {
                             let decode_ms = t0.elapsed().as_millis();
                             let t1 = std::time::Instant::now();
-                            if let Some(ref mut vo) = video_output {
-                                vo.present(bgra_data, w * 4);
-                            }
+                            // TEST: skip DRM present to isolate crash source
+                            let _ = bgra_data;
+                            //if let Some(ref mut vo) = video_output {
+                            //    vo.present(bgra_data, w * 4);
+                            //}
                             let present_ms = t1.elapsed().as_millis();
                             if frame_count <= 10 || frame_count % 300 == 0 {
                                 println!(
