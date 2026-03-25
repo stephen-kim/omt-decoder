@@ -5,6 +5,8 @@ pub struct VmxDecoder {
     instance: *mut VMX_INSTANCE,
     width: u32,
     height: u32,
+    /// Pre-allocated decode buffer, reused every frame to avoid allocation overhead.
+    buffer: Vec<u8>,
 }
 
 unsafe impl Send for VmxDecoder {}
@@ -25,19 +27,19 @@ impl VmxDecoder {
         if instance.is_null() {
             return None;
         }
+        let buf_size = (width * height * 4) as usize;
         Some(VmxDecoder {
             instance,
             width,
             height,
+            buffer: vec![0u8; buf_size],
         })
     }
 
     /// Decode a VMX1 compressed frame into BGRA pixels.
-    /// Returns the BGRA buffer on success.
-    pub fn decode(&mut self, compressed: &[u8]) -> Option<Vec<u8>> {
+    /// Returns a slice of the internal buffer (zero-copy, valid until next decode call).
+    pub fn decode(&mut self, compressed: &[u8]) -> Option<&[u8]> {
         let stride = (self.width * 4) as i32;
-        let buf_size = (stride as u32 * self.height) as usize;
-        let mut dst = vec![0u8; buf_size];
 
         unsafe {
             let hr = VMX_LoadFrom(
@@ -49,13 +51,13 @@ impl VmxDecoder {
                 return None;
             }
 
-            let hr = VMX_DecodeBGRA(self.instance, dst.as_mut_ptr(), stride);
+            let hr = VMX_DecodeBGRA(self.instance, self.buffer.as_mut_ptr(), stride);
             if hr != VMX_ERR_VMX_ERR_OK {
                 return None;
             }
         }
 
-        Some(dst)
+        Some(&self.buffer)
     }
 }
 
@@ -68,13 +70,4 @@ impl Drop for VmxDecoder {
             self.instance = ptr::null_mut();
         }
     }
-}
-
-/// Stateless convenience function. Creates a decoder, decodes one frame, and discards the decoder.
-/// For sustained playback, use VmxDecoder directly to avoid re-allocating each frame.
-pub fn decode_frame(compressed: &[u8], width: u32, height: u32) -> Option<Vec<u8>> {
-    // NOTE: In the main loop we should keep VmxDecoder alive and reuse it.
-    // This function exists for simplicity; the main loop should use VmxDecoder directly.
-    let mut dec = VmxDecoder::new(width, height)?;
-    dec.decode(compressed)
 }

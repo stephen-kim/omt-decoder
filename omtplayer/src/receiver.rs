@@ -21,7 +21,7 @@ pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
     }
 
     let (audio_tx, audio_rx) = mpsc::channel::<OMTFrame>(64);
-    let (video_tx, video_rx) = mpsc::channel::<OMTFrame>(8);
+    let (video_tx, video_rx) = mpsc::channel::<OMTFrame>(16);
     let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
 
     tokio::spawn(async move {
