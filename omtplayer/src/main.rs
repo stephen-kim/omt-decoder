@@ -102,6 +102,7 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
     }
 
     let mut frame_count: u64 = 0;
+    let mut fps_timer = std::time::Instant::now();
 
     loop {
         // Check for settings changes (non-blocking)
@@ -148,10 +149,8 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             }
         }
 
-        // Video: always wait with short timeout to stay responsive
-        let video_frame = r.video_rx
-            .recv_timeout(std::time::Duration::from_millis(16))
-            .ok();
+        // Video: block until next frame (matching C# Receive with timeout)
+        let video_frame = r.video_rx.recv().ok();
 
         #[cfg(target_os = "linux")]
         if let Some(frame) = video_frame {
@@ -191,11 +190,14 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                         }
                         let present_ms = t1.elapsed().as_millis();
                         frame_count += 1;
-                        if frame_count <= 10 || frame_count % 300 == 0 {
+                        if frame_count % 300 == 0 {
+                            let elapsed = fps_timer.elapsed().as_secs_f64();
+                            let fps = 300.0 / elapsed;
                             println!(
-                                "Frame {}: decode={}ms present={}ms",
-                                frame_count, decode_ms, present_ms
+                                "Frame {}: decode={}ms present={}ms fps={:.1}",
+                                frame_count, decode_ms, present_ms, fps
                             );
+                            fps_timer = std::time::Instant::now();
                         }
                     }
                 }
