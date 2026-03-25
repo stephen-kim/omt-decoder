@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -14,23 +13,24 @@ pub fn start_discovery() -> SourceList {
 
     tokio::spawn(async move {
         loop {
-            let discovered = browse_omt_sources();
+            let discovered = browse_omt_sources().await;
             {
                 let mut list = sources_clone.write().await;
                 *list = discovered;
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
         }
     });
 
     sources
 }
 
-/// Run avahi-browse to find _omt._tcp services on the local network.
-fn browse_omt_sources() -> Vec<OmtSource> {
-    let output = Command::new("avahi-browse")
+/// Run avahi-browse asynchronously to find _omt._tcp services.
+async fn browse_omt_sources() -> Vec<OmtSource> {
+    let output = tokio::process::Command::new("avahi-browse")
         .args(["-rpt", "_omt._tcp"])
-        .output();
+        .output()
+        .await;
 
     let output = match output {
         Ok(o) => o,
