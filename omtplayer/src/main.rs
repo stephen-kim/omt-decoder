@@ -184,6 +184,15 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                         }
                     }
 
+                    // Count all received video frames for fps
+                    frame_count += 1;
+                    if frame_count % 300 == 0 {
+                        let elapsed = fps_timer.elapsed().as_secs_f64();
+                        let fps = 300.0 / elapsed;
+                        println!("Received {}: recv_fps={:.1}", frame_count, fps);
+                        fps_timer = std::time::Instant::now();
+                    }
+
                     if let Some(ref mut dec) = vmx_dec {
                         let t0 = std::time::Instant::now();
                         if let Some(bgra_data) = dec.decode(&frame.data) {
@@ -193,15 +202,11 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                                 vo.present(bgra_data, w * 4);
                             }
                             let present_ms = t1.elapsed().as_millis();
-                            frame_count += 1;
-                            if frame_count % 300 == 0 {
-                                let elapsed = fps_timer.elapsed().as_secs_f64();
-                                let fps = 300.0 / elapsed;
+                            if frame_count <= 10 || frame_count % 300 == 0 {
                                 println!(
-                                    "Frame {}: decode={}ms present={}ms fps={:.1}",
-                                    frame_count, decode_ms, present_ms, fps
+                                    "  decode={}ms present={}ms",
+                                    decode_ms, present_ms
                                 );
-                                fps_timer = std::time::Instant::now();
                             }
                         }
                     }
