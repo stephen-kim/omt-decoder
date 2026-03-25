@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
 /// No channels, no async in the hot path.
 fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Settings>) {
     #[cfg(target_os = "linux")]
-    let mut audio_player = audio::AudioPlayer::new(&initial_settings.audio_devices);
+    let mut audio_player = audio::AudioPlayer::new(&initial_settings.audio_devices, initial_settings.volume);
     #[cfg(target_os = "linux")]
     let mut video_output: Option<video::VideoOutput> = None;
     #[cfg(target_os = "linux")]
@@ -124,7 +124,10 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             }
 
             #[cfg(target_os = "linux")]
-            audio_player.set_devices(&new_settings.audio_devices);
+            {
+                audio_player.set_devices(&new_settings.audio_devices);
+                audio_player.set_volume(new_settings.volume);
+            }
         }
 
         let Some(ref mut c) = conn else {

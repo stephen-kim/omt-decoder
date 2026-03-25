@@ -199,6 +199,33 @@ button.ghost {
   to { opacity: 1; transform: translateY(0); }
 }
 
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(86, 212, 255, 0.3);
+}
+
+.volume-display {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-2);
+  margin-top: 8px;
+}
+
 @media (max-width: 600px) {
   .hero { flex-direction: column; align-items: flex-start; }
 }
@@ -229,6 +256,12 @@ button.ghost {
     <div class="card-title">Audio Output Devices</div>
     <div id="audioDevices" class="check-grid"></div>
     <div class="help">Select one or more audio outputs for playback.</div>
+
+    <label style="margin-top: 16px;">Volume: <span id="volDisplay">100%</span></label>
+    <input type="range" id="volume" min="0" max="200" step="1" value="100"
+           oninput="document.getElementById('volDisplay').textContent = this.value + '%'"
+           onchange="saveConfig()" />
+    <div class="help">0% = mute, 100% = original, 200% = 2x gain.</div>
   </div>
 </div>
 
@@ -297,11 +330,20 @@ async function loadDevices() {
   }
 }
 
+function loadVolume() {
+  if (currentConfig && currentConfig.volume != null) {
+    const pct = Math.round(currentConfig.volume * 100);
+    document.getElementById('volume').value = pct;
+    document.getElementById('volDisplay').textContent = pct + '%';
+  }
+}
+
 async function loadAll() {
   try {
     await loadConfig();
     await loadSources();
     await loadDevices();
+    loadVolume();
     toast('Refreshed', 'info');
   } catch (e) {
     toast('Failed to load: ' + e.message, 'error');
@@ -316,9 +358,11 @@ async function saveConfig() {
   });
   // No fallback — user must explicitly select devices
 
+  const volPct = Number(document.getElementById('volume').value);
   const payload = {
     source: source,
     audio_devices: audioDevices,
+    volume: volPct / 100.0,
     web_port: currentConfig ? currentConfig.web_port : 8080
   };
 

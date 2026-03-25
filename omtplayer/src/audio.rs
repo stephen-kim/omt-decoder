@@ -15,10 +15,11 @@ pub struct AudioPlayer {
     channels: Arc<Mutex<u32>>,
     rate: Arc<Mutex<u32>>,
     running: Arc<Mutex<bool>>,
+    volume: Arc<Mutex<f32>>,
 }
 
 impl AudioPlayer {
-    pub fn new(device_names: &[String]) -> Self {
+    pub fn new(device_names: &[String], volume: f32) -> Self {
         let player = AudioPlayer {
             devices: Arc::new(Mutex::new(device_names.to_vec())),
             pcm_handles: Arc::new(Mutex::new(Vec::new())),
@@ -26,6 +27,7 @@ impl AudioPlayer {
             channels: Arc::new(Mutex::new(0)),
             rate: Arc::new(Mutex::new(0)),
             running: Arc::new(Mutex::new(true)),
+            volume: Arc::new(Mutex::new(volume)),
         };
 
         // Start playback thread
@@ -39,6 +41,10 @@ impl AudioPlayer {
         });
 
         player
+    }
+
+    pub fn set_volume(&self, vol: f32) {
+        *self.volume.lock().unwrap() = vol.clamp(0.0, 2.0);
     }
 
     pub fn set_devices(&mut self, device_names: &[String]) {
@@ -68,16 +74,17 @@ impl AudioPlayer {
             }
         }
 
-        // Planar float → interleaved float
+        // Planar float → interleaved float with volume
         let total_samples = (channels * samples_per_channel) as usize;
         let mut interleaved = vec![0.0f32; total_samples];
+        let vol = *self.volume.lock().unwrap();
 
         let src =
             unsafe { std::slice::from_raw_parts(planar_data.as_ptr() as *const f32, total_samples) };
 
         for s in 0..samples_per_channel as usize {
             for c in 0..channels as usize {
-                interleaved[s * channels as usize + c] = src[c * samples_per_channel as usize + s];
+                interleaved[s * channels as usize + c] = src[c * samples_per_channel as usize + s] * vol;
             }
         }
 

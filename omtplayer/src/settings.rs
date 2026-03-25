@@ -8,6 +8,7 @@ use std::path::Path;
 pub struct Settings {
     pub source: String,
     pub audio_devices: Vec<String>,
+    pub volume: f32,
     pub web_port: u16,
 }
 
@@ -16,6 +17,7 @@ impl Default for Settings {
         Self {
             source: "None".to_string(),
             audio_devices: Vec::new(),
+            volume: 1.0,
             web_port: 8080,
         }
     }
