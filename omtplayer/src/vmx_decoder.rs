@@ -17,10 +17,13 @@ impl VmxDecoder {
             width: width as i32,
             height: height as i32,
         };
+        // Decoder must use DEFAULT profile — the compressed stream carries
+        // its own quality info. Using an encoder profile here causes internal
+        // buffer size mismatch and crashes (SEGV).
         let instance = unsafe {
             VMX_Create(
                 size,
-                VMX_PROFILE_VMX_PROFILE_OMT_HQ,
+                VMX_PROFILE_VMX_PROFILE_DEFAULT,
                 VMX_COLORSPACE_VMX_COLORSPACE_UNDEFINED,
             )
         };
