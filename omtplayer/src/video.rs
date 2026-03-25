@@ -288,10 +288,17 @@ impl DrmBuffer {
             return;
         }
         let row_bytes = (self.width * 4) as usize;
+        let src_stride = src_stride as usize;
+        // Bounds check: ensure src is large enough
+        let rows = self.height as usize;
+        let required = if rows > 0 { (rows - 1) * src_stride + row_bytes } else { 0 };
+        if src.len() < required {
+            return; // source buffer too small, skip frame
+        }
         unsafe {
-            for y in 0..self.height as usize {
+            for y in 0..rows {
                 let dst_row = dst.add(y * self.pitch as usize);
-                let src_row = src.as_ptr().add(y * src_stride as usize);
+                let src_row = src.as_ptr().add(y * src_stride);
                 ptr::copy_nonoverlapping(src_row, dst_row, row_bytes);
             }
         }
@@ -333,6 +340,7 @@ pub struct VideoOutput {
     front_buffer: Option<usize>,
     present_empty: bool,
     events_running: Arc<Mutex<bool>>,
+    events_thread: Option<std::thread::JoinHandle<()>>,
     flip_rx: std_mpsc::Receiver<u32>,
 }
 
@@ -399,7 +407,7 @@ impl VideoOutput {
         // Start events thread
         let fd_clone = fd;
         let running_clone = events_running.clone();
-        std::thread::Builder::new()
+        let events_handle = std::thread::Builder::new()
             .name("drm-events".into())
             .spawn(move || {
                 events_thread(fd_clone, running_clone, flip_tx);
@@ -427,6 +435,7 @@ impl VideoOutput {
             front_buffer: None, // C# starts with null — set by first FlippedEvent
             present_empty: false,
             events_running,
+            events_thread: Some(events_handle),
             flip_rx,
         };
 
@@ -493,9 +502,10 @@ impl VideoOutput {
 impl Drop for VideoOutput {
     fn drop(&mut self) {
         *self.events_running.lock().unwrap() = false;
-        // Give events thread time to exit
-        std::thread::sleep(std::time::Duration::from_millis(300));
-        // Buffers will be dropped automatically
+        // Wait for events thread to finish (it polls with 200ms timeout)
+        if let Some(handle) = self.events_thread.take() {
+            let _ = handle.join();
+        }
         self.buffers.clear();
         if self.fd >= 0 {
             unsafe {

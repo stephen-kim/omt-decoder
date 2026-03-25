@@ -39,6 +39,9 @@ impl VmxDecoder {
     /// Decode a VMX1 compressed frame into BGRA pixels.
     /// Returns a slice of the internal buffer (zero-copy, valid until next decode call).
     pub fn decode(&mut self, compressed: &[u8]) -> Option<&[u8]> {
+        if compressed.is_empty() {
+            return None;
+        }
         let stride = (self.width * 4) as i32;
 
         unsafe {

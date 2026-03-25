@@ -4,6 +4,8 @@ After=network.target
 
 [Service]
 ExecStart=/opt/omtplayer/omtplayer
+Restart=always
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target
