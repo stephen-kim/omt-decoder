@@ -135,13 +135,30 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             continue;
         };
 
-        // Read next frame directly from TCP — no channels
-        let frame = match c.next_frame() {
+        // Read frames: audio is processed inline via callback,
+        // only video frames are returned for decode+present.
+        #[cfg(target_os = "linux")]
+        let frame = {
+            let ap = &mut audio_player;
+            c.next_video_frame(|audio_frame| {
+                if let Some(ref ah) = audio_frame.audio_header {
+                    ap.enqueue(
+                        &audio_frame.data,
+                        ah.channels as u32,
+                        ah.samples_per_channel as u32,
+                        ah.sample_rate as u32,
+                    );
+                }
+            })
+        };
+        #[cfg(not(target_os = "linux"))]
+        let frame = c.next_frame();
+
+        let frame = match frame {
             Ok(f) => f,
             Err(e) => {
                 eprintln!("Connection lost: {}", e);
                 conn = None;
-                // Reconnect after delay
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 if current_source != "None" && !current_source.is_empty() {
                     conn = try_connect(&current_source);
@@ -150,72 +167,45 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             }
         };
 
-        match frame.header.frame_type {
-            #[cfg(target_os = "linux")]
-            libomtnet::OMTFrameType::Audio => {
-                if let Some(ref ah) = frame.audio_header {
-                    audio_player.enqueue(
-                        &frame.data,
-                        ah.channels as u32,
-                        ah.samples_per_channel as u32,
-                        ah.sample_rate as u32,
-                    );
+        #[cfg(target_os = "linux")]
+        if let Some(ref vh) = frame.video_header {
+            let w = vh.width as u32;
+            let h = vh.height as u32;
+
+            if w != current_width || h != current_height {
+                current_width = w;
+                current_height = h;
+                let frame_rate = if vh.frame_rate_d > 0 {
+                    vh.frame_rate_n as f32 / vh.frame_rate_d as f32
+                } else {
+                    60.0
+                };
+                println!("Video: {}x{} @ {:.2}fps codec=0x{:08X}", w, h, frame_rate, vh.codec);
+                vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
+                if vmx_dec.is_none() {
+                    eprintln!("Video: VMX decoder creation failed");
+                }
+                video_output = video::VideoOutput::new(w, h, frame_rate);
+                if video_output.is_none() {
+                    eprintln!("Video: display output creation failed");
                 }
             }
-            #[cfg(target_os = "linux")]
-            libomtnet::OMTFrameType::Video => {
-                if let Some(ref vh) = frame.video_header {
-                    let w = vh.width as u32;
-                    let h = vh.height as u32;
 
-                    if w != current_width || h != current_height {
-                        current_width = w;
-                        current_height = h;
-                        let frame_rate = if vh.frame_rate_d > 0 {
-                            vh.frame_rate_n as f32 / vh.frame_rate_d as f32
-                        } else {
-                            60.0
-                        };
-                        println!("Video: {}x{} @ {:.2}fps codec=0x{:08X}", w, h, frame_rate, vh.codec);
-                        vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
-                        if vmx_dec.is_none() {
-                            eprintln!("Video: VMX decoder creation failed");
-                        }
-                        video_output = video::VideoOutput::new(w, h, frame_rate);
-                        if video_output.is_none() {
-                            eprintln!("Video: display output creation failed");
-                        }
-                    }
+            frame_count += 1;
+            if frame_count % 300 == 0 {
+                let elapsed = fps_timer.elapsed().as_secs_f64();
+                let fps = 300.0 / elapsed;
+                println!("Received {}: recv_fps={:.1}", frame_count, fps);
+                fps_timer = std::time::Instant::now();
+            }
 
-                    // Count all received video frames for fps
-                    frame_count += 1;
-                    if frame_count % 300 == 0 {
-                        let elapsed = fps_timer.elapsed().as_secs_f64();
-                        let fps = 300.0 / elapsed;
-                        println!("Received {}: recv_fps={:.1}", frame_count, fps);
-                        fps_timer = std::time::Instant::now();
-                    }
-
-                    if let Some(ref mut dec) = vmx_dec {
-                        let t0 = std::time::Instant::now();
-                        if let Some(bgra_data) = dec.decode(&frame.data) {
-                            let decode_ms = t0.elapsed().as_millis();
-                            let t1 = std::time::Instant::now();
-                            if let Some(ref mut vo) = video_output {
-                                vo.present(bgra_data, w * 4);
-                            }
-                            let present_ms = t1.elapsed().as_millis();
-                            if frame_count <= 10 || frame_count % 300 == 0 {
-                                println!(
-                                    "  decode={}ms present={}ms",
-                                    decode_ms, present_ms
-                                );
-                            }
-                        }
+            if let Some(ref mut dec) = vmx_dec {
+                if let Some(bgra_data) = dec.decode(&frame.data) {
+                    if let Some(ref mut vo) = video_output {
+                        vo.present(bgra_data, w * 4);
                     }
                 }
             }
-            _ => {}
         }
     }
 }

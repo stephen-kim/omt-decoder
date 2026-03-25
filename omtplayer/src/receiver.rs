@@ -92,9 +92,20 @@ impl OMTConnection {
         Ok(Some(frame))
     }
 
-    /// Set a read timeout on the underlying socket.
-    pub fn set_read_timeout(&self, timeout: Option<std::time::Duration>) -> io::Result<()> {
-        self.stream.set_read_timeout(timeout)
+    /// Read frames until a video frame arrives. Audio frames are passed to the callback immediately.
+    /// This ensures audio is never starved by video decode.
+    pub fn next_video_frame(
+        &mut self,
+        mut audio_cb: impl FnMut(&OMTFrame),
+    ) -> io::Result<OMTFrame> {
+        loop {
+            let frame = self.next_frame()?;
+            match frame.header.frame_type {
+                OMTFrameType::Audio => audio_cb(&frame),
+                OMTFrameType::Video => return Ok(frame),
+                _ => {} // skip metadata etc.
+            }
+        }
     }
 }
 
