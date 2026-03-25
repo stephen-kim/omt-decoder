@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 extern "C" {}
 
 const SND_PCM_STREAM_PLAYBACK: libc::c_int = 0;
-const SND_PCM_FORMAT_FLOAT_LE: libc::c_int = 14;
+const SND_PCM_FORMAT_S16_LE: libc::c_int = 2;
 const SND_PCM_ACCESS_RW_INTERLEAVED: libc::c_int = 3;
 
 extern "C" {
@@ -73,7 +73,7 @@ impl Drop for PcmHandle {
 pub struct AudioPlayer {
     devices: Arc<Mutex<Vec<String>>>,
     pcm_handles: Arc<Mutex<Vec<PcmHandle>>>,
-    queue: Arc<Mutex<VecDeque<Vec<f32>>>>,
+    queue: Arc<Mutex<VecDeque<Vec<i16>>>>,
     channels: Arc<Mutex<u32>>,
     rate: Arc<Mutex<u32>>,
     running: Arc<Mutex<bool>>,
@@ -139,20 +139,22 @@ impl AudioPlayer {
         let total_samples = (channels * samples_per_channel) as usize;
         let required_bytes = total_samples * std::mem::size_of::<f32>();
         if planar_data.len() < required_bytes {
-            return; // incomplete audio data, skip
+            return;
         }
 
-        let mut interleaved = vec![0.0f32; total_samples];
+        let mut interleaved = vec![0i16; total_samples];
         let vol = *self.volume.lock().unwrap();
 
         let src = unsafe {
             std::slice::from_raw_parts(planar_data.as_ptr() as *const f32, total_samples)
         };
 
+        // Planar float → interleaved S16 with volume
         for s in 0..samples_per_channel as usize {
             for c in 0..channels as usize {
-                interleaved[s * channels as usize + c] =
-                    src[c * samples_per_channel as usize + s] * vol;
+                let sample = src[c * samples_per_channel as usize + s] * vol;
+                let clamped = sample.clamp(-1.0, 1.0);
+                interleaved[s * channels as usize + c] = (clamped * 32767.0) as i16;
             }
         }
 
@@ -208,7 +210,7 @@ fn open_pcm(name: &str, channels: u32, sample_rate: u32) -> Result<PcmHandle, St
     let err = unsafe {
         snd_pcm_set_params(
             handle,
-            SND_PCM_FORMAT_FLOAT_LE,
+            SND_PCM_FORMAT_S16_LE,
             SND_PCM_ACCESS_RW_INTERLEAVED,
             channels,
             sample_rate,
@@ -225,7 +227,7 @@ fn open_pcm(name: &str, channels: u32, sample_rate: u32) -> Result<PcmHandle, St
 }
 
 fn playback_loop(
-    queue: Arc<Mutex<VecDeque<Vec<f32>>>>,
+    queue: Arc<Mutex<VecDeque<Vec<i16>>>>,
     handles: Arc<Mutex<Vec<PcmHandle>>>,
     channels: Arc<Mutex<u32>>,
     running: Arc<Mutex<bool>>,
