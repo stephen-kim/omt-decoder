@@ -114,15 +114,17 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px;
       <h1 data-i18n="title">Control Deck</h1>
       <p class="sub" data-i18n="subtitle">Stream receiver and audio output controls.</p>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <button class="ghost" onclick="loadAll()" data-i18n="refresh">Refresh</button>
-      <button onclick="saveConfig()" data-i18n="save">Save changes</button>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
       <select id="langSelect" onchange="switchLang(this.value)" style="padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:inherit;cursor:pointer;">
         <option value="en">English</option>
         <option value="ko">한국어</option>
         <option value="ja">日本語</option>
         <option value="es">Español</option>
       </select>
+      <div class="btn-row" style="margin-top:0;">
+        <button onclick="saveConfig()" data-i18n="save">Save changes</button>
+        <button class="ghost" onclick="loadAll()" data-i18n="refresh">Refresh</button>
+      </div>
     </div>
   </header>
 
