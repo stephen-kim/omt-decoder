@@ -444,6 +444,11 @@ impl VideoOutput {
                 self.present_empty = false;
                 self.flip(idx);
             } else {
+                // Only keep the latest frame queued — drop stale ones to prevent
+                // uneven frame pacing when source fps < display refresh rate.
+                while let Some(old) = self.present_queue.pop_front() {
+                    self.write_queue.push_back(old);
+                }
                 self.present_queue.push_back(idx);
             }
         }
