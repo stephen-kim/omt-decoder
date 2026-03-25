@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::ffi::CString;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 // ── ALSA FFI (matching C# P/Invoke exactly) ───────────────────────────────
 
@@ -73,7 +73,7 @@ impl Drop for PcmHandle {
 pub struct AudioPlayer {
     devices: Arc<Mutex<Vec<String>>>,
     pcm_handles: Arc<Mutex<Vec<PcmHandle>>>,
-    queue: Arc<Mutex<VecDeque<Vec<i16>>>>,
+    queue: Arc<(Mutex<VecDeque<Vec<i16>>>, Condvar)>,
     channels: Arc<Mutex<u32>>,
     rate: Arc<Mutex<u32>>,
     running: Arc<Mutex<bool>>,
@@ -85,7 +85,7 @@ impl AudioPlayer {
         let player = AudioPlayer {
             devices: Arc::new(Mutex::new(device_names.to_vec())),
             pcm_handles: Arc::new(Mutex::new(Vec::new())),
-            queue: Arc::new(Mutex::new(VecDeque::new())),
+            queue: Arc::new((Mutex::new(VecDeque::new()), Condvar::new())),
             channels: Arc::new(Mutex::new(0)),
             rate: Arc::new(Mutex::new(0)),
             running: Arc::new(Mutex::new(true)),
@@ -158,8 +158,10 @@ impl AudioPlayer {
             }
         }
 
-        let mut queue = self.queue.lock().unwrap();
+        let (ref lock, ref cvar) = *self.queue;
+        let mut queue = lock.lock().unwrap();
         queue.push_back(interleaved);
+        cvar.notify_one();
     }
 
     fn open_audio(&self, channels: u32, sample_rate: u32) {
@@ -224,7 +226,7 @@ fn open_pcm(name: &str, channels: u32, sample_rate: u32) -> Result<PcmHandle, St
 }
 
 fn playback_loop(
-    queue: Arc<Mutex<VecDeque<Vec<i16>>>>,
+    queue: Arc<(Mutex<VecDeque<Vec<i16>>>, Condvar)>,
     handles: Arc<Mutex<Vec<PcmHandle>>>,
     channels: Arc<Mutex<u32>>,
     running: Arc<Mutex<bool>>,
@@ -235,7 +237,17 @@ fn playback_loop(
         }
 
         let buffer = {
-            let mut q = queue.lock().unwrap();
+            let (ref lock, ref cvar) = *queue;
+            let mut q = lock.lock().unwrap();
+            while q.is_empty() {
+                let (guard, _) = cvar
+                    .wait_timeout(q, std::time::Duration::from_millis(50))
+                    .unwrap();
+                q = guard;
+                if !*running.lock().unwrap() {
+                    return;
+                }
+            }
             q.pop_front()
         };
 
@@ -261,8 +273,6 @@ fn playback_loop(
                     }
                 }
             }
-        } else {
-            std::thread::sleep(std::time::Duration::from_millis(1));
         }
     }
 }
