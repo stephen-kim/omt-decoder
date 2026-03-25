@@ -41,27 +41,50 @@ pub fn start_receiver(address: &str) -> Option<ReceiverHandle> {
                 }
             };
 
+            let mut frame_count: u64 = 0;
+            let mut audio_count: u64 = 0;
+            let mut video_count: u64 = 0;
+
             loop {
                 tokio::select! {
                     frame = client.receive() => {
                         match frame {
                             Some(Ok(f)) => {
+                                frame_count += 1;
+                                if frame_count <= 5 || frame_count % 500 == 0 {
+                                    println!("Frame #{}: type={:?} data_len={}",
+                                        frame_count, f.header.frame_type, f.data.len());
+                                }
+
                                 let send_result = match f.header.frame_type {
-                                    OMTFrameType::Audio => audio_tx.try_send(f),
-                                    OMTFrameType::Video => video_tx.try_send(f),
+                                    OMTFrameType::Audio => {
+                                        audio_count += 1;
+                                        audio_tx.try_send(f)
+                                    }
+                                    OMTFrameType::Video => {
+                                        video_count += 1;
+                                        if video_count <= 3 {
+                                            println!("Video frame #{}: {}x{} codec=0x{:08X}",
+                                                video_count,
+                                                f.video_header.as_ref().map(|h| h.width).unwrap_or(0),
+                                                f.video_header.as_ref().map(|h| h.height).unwrap_or(0),
+                                                f.video_header.as_ref().map(|h| h.codec).unwrap_or(0));
+                                        }
+                                        video_tx.try_send(f)
+                                    }
                                     _ => Ok(()),
                                 };
                                 if let Err(mpsc::error::TrySendError::Closed(_)) = send_result {
                                     return;
                                 }
-                                // TrySendError::Full is fine — drop the frame rather than block
                             }
                             Some(Err(e)) => {
                                 eprintln!("Receive error: {}", e);
                                 break;
                             }
                             None => {
-                                println!("Connection closed");
+                                println!("Connection closed (frames: {} audio: {} video: {})",
+                                    frame_count, audio_count, video_count);
                                 break;
                             }
                         }
