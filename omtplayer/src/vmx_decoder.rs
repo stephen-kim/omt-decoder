@@ -7,6 +7,8 @@ pub struct VmxDecoder {
     height: u32,
     /// Pre-allocated decode buffer, reused every frame to avoid allocation overhead.
     buffer: Vec<u8>,
+    /// Mutable copy of compressed input — VMX_LoadFrom may write to its input buffer.
+    input_buf: Vec<u8>,
 }
 
 unsafe impl Send for VmxDecoder {}
@@ -39,6 +41,7 @@ impl VmxDecoder {
             width,
             height,
             buffer: vec![0u8; buf_size],
+            input_buf: Vec::with_capacity(1024 * 1024),
         })
     }
 
@@ -50,11 +53,16 @@ impl VmxDecoder {
         }
         let stride = (self.width * 4) as i32;
 
+        // Copy to mutable buffer — VMX_LoadFrom's signature takes non-const BYTE*
+        // and may modify the input during parsing.
+        self.input_buf.clear();
+        self.input_buf.extend_from_slice(compressed);
+
         unsafe {
             let hr = VMX_LoadFrom(
                 self.instance,
-                compressed.as_ptr() as *mut u8,
-                compressed.len() as i32,
+                self.input_buf.as_mut_ptr(),
+                self.input_buf.len() as i32,
             );
             if hr != VMX_ERR_VMX_ERR_OK {
                 return None;
