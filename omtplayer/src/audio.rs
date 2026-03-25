@@ -160,9 +160,6 @@ impl AudioPlayer {
 
         let mut queue = self.queue.lock().unwrap();
         queue.push_back(interleaved);
-        while queue.len() > 20 {
-            queue.pop_front();
-        }
     }
 
     fn open_audio(&self, channels: u32, sample_rate: u32) {
@@ -254,8 +251,13 @@ fn playback_loop(
                     snd_pcm_writei(dev.handle, buf.as_ptr() as *const libc::c_void, frames)
                 };
                 if err < 0 {
+                    let err_code = err as libc::c_int;
+                    // -32 = EPIPE (underrun), -77 = EBADFD
+                    if err_code == -32 {
+                        eprintln!("Audio underrun on {}", dev.name);
+                    }
                     unsafe {
-                        snd_pcm_recover(dev.handle, err as libc::c_int, 1);
+                        snd_pcm_recover(dev.handle, err_code, 1);
                     }
                 }
             }
