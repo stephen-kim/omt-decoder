@@ -424,7 +424,7 @@ impl VideoOutput {
             buffers,
             write_queue,
             present_queue: VecDeque::new(),
-            front_buffer: Some(first_idx),
+            front_buffer: None, // C# starts with null — set by first FlippedEvent
             present_empty: false,
             events_running,
             flip_rx,
