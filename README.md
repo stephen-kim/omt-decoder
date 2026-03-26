@@ -38,10 +38,27 @@ Tokio runtime:  Web server + mDNS discovery (non-interfering)
 
 Built-in web control panel with dark theme (matching omt-encoder style):
 - Source selection with mDNS auto-discovery
+- Video quality selector (Low / Medium / High) — sends quality hint to encoder, adjustable at runtime
 - Audio output device selection
 - Volume slider (0-200%)
 - Multi-language support (English, Korean, Japanese, Spanish)
 - Toast notifications
+
+### USB Audio DAC Support
+
+Audio can be routed to any USB DAC connected to the Raspberry Pi. The web UI lists all available ALSA output devices — simply check the USB DAC and uncheck HDMI outputs. This enables high-quality audio playback through external DACs, headphone amps, or powered speakers with USB input.
+
+### Adaptive Quality
+
+The player can request the encoder to adjust video bitrate by sending `<OMTSettings Quality="..." />`:
+
+| Quality | Estimated Bitrate (1080p30) | Use Case |
+|---------|----------------------------|----------|
+| **Low** | ~30-40 Mbps | WiFi, congested networks |
+| **Medium** | ~60-80 Mbps | Default, balanced |
+| **High** | ~100-120 Mbps | Wired LAN, best quality |
+
+Quality can be changed at runtime from the web UI without reconnecting.
 
 ## Install on Raspberry Pi
 
