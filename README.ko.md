@@ -1,6 +1,6 @@
-# OMT Decoder
-
 [English](README.md)
+
+# OMT Decoder
 
 Raspberry Pi용 저지연 OMT 스트림 수신기/플레이어. **Rust**로 재작성하여 최대 성능을 달성합니다.
 

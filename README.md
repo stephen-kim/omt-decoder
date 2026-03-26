@@ -1,6 +1,6 @@
-# OMT Decoder
-
 한국어 문서는 [README.ko.md](README.ko.md)를 참고하세요.
+
+# OMT Decoder
 
 A low-latency OMT stream receiver and player for Raspberry Pi, rewritten in **Rust** for maximum performance.
 
