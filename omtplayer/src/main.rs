@@ -1,5 +1,3 @@
-#![allow(unused_variables)]
-
 mod discovery;
 mod receiver;
 mod settings;
@@ -38,10 +36,8 @@ async fn main() -> Result<()> {
     let shared_settings = Arc::new(RwLock::new(settings.clone()));
     let (settings_tx, settings_rx) = watch::channel(settings.clone());
 
-    // Start discovery
     let sources = discovery::start_discovery();
 
-    // Start web server
     let web_state = web_server::WebState {
         settings: shared_settings.clone(),
         settings_tx: settings_tx.clone(),
@@ -56,10 +52,9 @@ async fn main() -> Result<()> {
     });
     println!("Web server on port {}", web_port);
 
-    // Player loop on dedicated thread — mirrors C# Main() exactly
     let player_settings = settings.clone();
     let player_settings_rx = settings_rx.clone();
-    let player_handle = std::thread::Builder::new()
+    std::thread::Builder::new()
         .name("player".into())
         .spawn(move || {
             player_loop(player_settings, player_settings_rx);
@@ -77,23 +72,22 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Synchronous player loop — 1:1 mirror of C# Program.Main().
-/// Single thread: TCP read → parse → audio enqueue / video decode+present.
-/// No channels, no async in the hot path.
+/// Player thread: TCP read → audio enqueue inline → video to decode thread.
+/// Minimal latency: audio written to ALSA as soon as parsed from TCP,
+/// video sent to decode thread with 2-frame buffer.
 fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Settings>) {
     #[cfg(target_os = "linux")]
-    let mut audio_player = audio::AudioPlayer::new(&initial_settings.audio_devices, initial_settings.volume);
+    let mut audio_player =
+        audio::AudioPlayer::new(&initial_settings.audio_devices, initial_settings.volume);
 
     let mut current_source = initial_settings.source.clone();
     let mut conn: Option<receiver::OMTConnection> = None;
 
-    // Video decode+present on a separate thread so it never blocks audio
-    let (video_tx, video_rx) = std::sync::mpsc::sync_channel::<libomtnet::OMTFrame>(4);
+    // 2-frame buffer for minimum latency (just enough to decouple threads)
+    let (video_tx, video_rx) = std::sync::mpsc::sync_channel::<libomtnet::OMTFrame>(2);
     std::thread::Builder::new()
         .name("video".into())
-        .spawn(move || {
-            video_thread(video_rx);
-        })
+        .spawn(move || video_thread(video_rx))
         .expect("failed to spawn video thread");
 
     if current_source != "None" && !current_source.is_empty() {
@@ -101,7 +95,6 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
     }
 
     loop {
-        // Check for settings changes
         if settings_rx.has_changed().unwrap_or(false) {
             let new_settings = settings_rx.borrow_and_update().clone();
 
@@ -126,27 +119,21 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             continue;
         };
 
-        // Read frames: audio is processed inline via callback,
-        // only video frames are returned for decode+present.
+        // Audio processed inline during TCP read; only video frames returned
         #[cfg(target_os = "linux")]
         let frame = {
             let ap = &mut audio_player;
-            c.next_video_frame(|audio_frame| {
-                if let Some(ref ah) = audio_frame.audio_header {
-                    ap.enqueue(
-                        &audio_frame.data,
-                        ah.channels as u32,
-                        ah.samples_per_channel as u32,
-                        ah.sample_rate as u32,
-                    );
+            c.next_video_frame(|f| {
+                if let Some(ref ah) = f.audio_header {
+                    ap.enqueue(&f.data, ah.channels as u32, ah.samples_per_channel as u32, ah.sample_rate as u32);
                 }
             })
         };
         #[cfg(not(target_os = "linux"))]
         let frame = c.next_frame();
 
-        let frame = match frame {
-            Ok(f) => f,
+        match frame {
+            Ok(f) => { let _ = video_tx.try_send(f); }
             Err(e) => {
                 eprintln!("Connection lost: {}", e);
                 conn = None;
@@ -154,47 +141,20 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                 if current_source != "None" && !current_source.is_empty() {
                     conn = try_connect(&current_source);
                 }
-                continue;
-            }
-        };
-
-        // Log stalls in frame delivery (detect >100ms gaps)
-        {
-            static mut LAST_FRAME: Option<std::time::Instant> = None;
-            let now = std::time::Instant::now();
-            unsafe {
-                if let Some(last) = LAST_FRAME {
-                    let gap = now.duration_since(last).as_millis();
-                    if gap > 100 {
-                        eprintln!("STALL: {}ms gap between video frames", gap);
-                    }
-                }
-                LAST_FRAME = Some(now);
             }
         }
-
-        // Send video to decode thread (non-blocking, drop if full)
-        let _ = video_tx.try_send(frame);
     }
 }
 
-/// Dedicated video decode + DRM present thread.
+/// Video decode + DRM present on dedicated thread.
 #[cfg(target_os = "linux")]
 fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
     let mut video_output: Option<video::VideoOutput> = None;
     let mut vmx_dec: Option<vmx_decoder::VmxDecoder> = None;
     let mut current_width: u32 = 0;
     let mut current_height: u32 = 0;
-    let mut frame_count: u64 = 0;
-    let mut fps_timer = std::time::Instant::now();
 
-    let mut last_recv = std::time::Instant::now();
     while let Ok(frame) = rx.recv() {
-        let recv_gap = last_recv.elapsed().as_millis();
-        last_recv = std::time::Instant::now();
-        if recv_gap > 100 {
-            eprintln!("VIDEO_STALL: {}ms wait in channel recv", recv_gap);
-        }
         if let Some(ref vh) = frame.video_header {
             let w = vh.width as u32;
             let h = vh.height as u32;
@@ -212,24 +172,10 @@ fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
                 video_output = video::VideoOutput::new(w, h, frame_rate);
             }
 
-            frame_count += 1;
-            if frame_count % 300 == 0 {
-                let elapsed = fps_timer.elapsed().as_secs_f64();
-                println!("Video {}: fps={:.1}", frame_count, 300.0 / elapsed);
-                fps_timer = std::time::Instant::now();
-            }
-
             if let Some(ref mut dec) = vmx_dec {
-                let t0 = std::time::Instant::now();
                 if let Some(bgra_data) = dec.decode(&frame.data) {
-                    let decode_ms = t0.elapsed().as_millis();
-                    let t1 = std::time::Instant::now();
                     if let Some(ref mut vo) = video_output {
                         vo.present(bgra_data, w * 4);
-                    }
-                    let present_ms = t1.elapsed().as_millis();
-                    if decode_ms + present_ms > 50 {
-                        eprintln!("SLOW: decode={}ms present={}ms", decode_ms, present_ms);
                     }
                 }
             }
