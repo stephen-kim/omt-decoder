@@ -188,7 +188,13 @@ fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
     let mut frame_count: u64 = 0;
     let mut fps_timer = std::time::Instant::now();
 
+    let mut last_recv = std::time::Instant::now();
     while let Ok(frame) = rx.recv() {
+        let recv_gap = last_recv.elapsed().as_millis();
+        last_recv = std::time::Instant::now();
+        if recv_gap > 100 {
+            eprintln!("VIDEO_STALL: {}ms wait in channel recv", recv_gap);
+        }
         if let Some(ref vh) = frame.video_header {
             let w = vh.width as u32;
             let h = vh.height as u32;
@@ -214,9 +220,16 @@ fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
             }
 
             if let Some(ref mut dec) = vmx_dec {
+                let t0 = std::time::Instant::now();
                 if let Some(bgra_data) = dec.decode(&frame.data) {
+                    let decode_ms = t0.elapsed().as_millis();
+                    let t1 = std::time::Instant::now();
                     if let Some(ref mut vo) = video_output {
                         vo.present(bgra_data, w * 4);
+                    }
+                    let present_ms = t1.elapsed().as_millis();
+                    if decode_ms + present_ms > 50 {
+                        eprintln!("SLOW: decode={}ms present={}ms", decode_ms, present_ms);
                     }
                 }
             }
