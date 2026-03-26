@@ -81,9 +81,9 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
         audio::AudioPlayer::new(&initial_settings.audio_devices, initial_settings.volume);
 
     let mut current_source = initial_settings.source.clone();
+    let mut current_quality = initial_settings.quality.clone();
     let mut conn: Option<receiver::OMTConnection> = None;
 
-    // 2-frame buffer for minimum latency (just enough to decouple threads)
     let (video_tx, video_rx) = std::sync::mpsc::sync_channel::<libomtnet::OMTFrame>(2);
     std::thread::Builder::new()
         .name("video".into())
@@ -91,7 +91,7 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
         .expect("failed to spawn video thread");
 
     if current_source != "None" && !current_source.is_empty() {
-        conn = try_connect(&current_source);
+        conn = try_connect(&current_source, &current_quality);
     }
 
     loop {
@@ -101,9 +101,16 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             if new_settings.source != current_source {
                 println!("Source changed: {}", new_settings.source);
                 current_source = new_settings.source.clone();
+                current_quality = new_settings.quality.clone();
                 conn = None;
                 if current_source != "None" && !current_source.is_empty() {
-                    conn = try_connect(&current_source);
+                    conn = try_connect(&current_source, &current_quality);
+                }
+            } else if new_settings.quality != current_quality {
+                current_quality = new_settings.quality.clone();
+                println!("Quality changed: {}", current_quality);
+                if let Some(ref c) = conn {
+                    let _ = c.send_quality(&current_quality);
                 }
             }
 
@@ -139,7 +146,7 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                 conn = None;
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 if current_source != "None" && !current_source.is_empty() {
-                    conn = try_connect(&current_source);
+                    conn = try_connect(&current_source, &current_quality);
                 }
             }
         }
@@ -188,10 +195,10 @@ fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
     while let Ok(_) = rx.recv() {}
 }
 
-fn try_connect(source: &str) -> Option<receiver::OMTConnection> {
+fn try_connect(source: &str, quality: &str) -> Option<receiver::OMTConnection> {
     let addr = source.strip_prefix("omt://").unwrap_or(source);
     println!("Connecting to {}...", addr);
-    match receiver::OMTConnection::connect(addr) {
+    match receiver::OMTConnection::connect(addr, quality) {
         Ok(c) => {
             println!("Connected, subscriptions sent");
             Some(c)

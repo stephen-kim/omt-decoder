@@ -12,10 +12,11 @@ pub struct OMTConnection {
 }
 
 impl OMTConnection {
-    pub fn connect(addr: &str) -> io::Result<Self> {
+    pub fn connect(addr: &str, quality: &str) -> io::Result<Self> {
         let stream = TcpStream::connect(addr)?;
         let _ = set_socket_buffers(&stream);
         send_subscribe(&stream)?;
+        let _ = send_quality_hint(&stream, quality);
         Ok(OMTConnection {
             stream,
             buf: BytesMut::with_capacity(2 * 1024 * 1024),
@@ -92,6 +93,11 @@ impl OMTConnection {
         Ok(Some(frame))
     }
 
+    /// Send quality hint to the encoder. Values: "Low", "Medium", "High".
+    pub fn send_quality(&self, quality: &str) -> io::Result<()> {
+        send_quality_hint(&self.stream, quality)
+    }
+
     /// Read frames until a video frame arrives. Audio frames are passed to the callback immediately.
     /// This ensures audio is never starved by video decode.
     pub fn next_video_frame(
@@ -137,6 +143,12 @@ fn send_subscribe(stream: &TcpStream) -> io::Result<()> {
     send_metadata_frame(&mut stream, r#"<OMTSubscribe Audio="true" />"#)?;
     send_metadata_frame(&mut stream, r#"<OMTSubscribe Metadata="true" />"#)?;
     Ok(())
+}
+
+fn send_quality_hint(stream: &TcpStream, quality: &str) -> io::Result<()> {
+    let xml = format!(r#"<OMTSettings Quality="{}" />"#, quality);
+    let mut stream = stream;
+    send_metadata_frame(&mut stream, &xml)
 }
 
 fn send_metadata_frame(stream: &mut &TcpStream, xml: &str) -> io::Result<()> {

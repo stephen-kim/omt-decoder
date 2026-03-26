@@ -133,6 +133,14 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px;
     <label data-i18n="source_label">Stream source</label>
     <select id="cboSource"></select>
     <div class="help" data-i18n="source_help">Select the OMT stream to receive and play back.</div>
+
+    <label style="margin-top: 16px;" data-i18n="quality_label">Video quality</label>
+    <select id="quality" onchange="saveConfig()">
+      <option value="Low" data-i18n-opt="quality_low">Low</option>
+      <option value="Medium" data-i18n-opt="quality_medium">Medium</option>
+      <option value="High" data-i18n-opt="quality_high">High</option>
+    </select>
+    <div class="help" data-i18n="quality_help">Lower quality uses less bandwidth (better for WiFi).</div>
   </div>
 
   <div class="card">
@@ -161,6 +169,11 @@ const i18n = {
     source_title: "Source",
     source_label: "Stream source",
     source_help: "Select the OMT stream to receive and play back.",
+    quality_label: "Video quality",
+    quality_low: "Low (WiFi friendly)",
+    quality_medium: "Medium",
+    quality_high: "High",
+    quality_help: "Lower quality uses less bandwidth (better for WiFi).",
     audio_title: "Audio Output Devices",
     audio_help: "Select one or more audio outputs for playback.",
     vol_label: "Volume",
@@ -178,6 +191,11 @@ const i18n = {
     source_title: "소스",
     source_label: "스트림 소스",
     source_help: "수신할 OMT 스트림을 선택하세요.",
+    quality_label: "영상 품질",
+    quality_low: "낮음 (WiFi 적합)",
+    quality_medium: "보통",
+    quality_high: "높음",
+    quality_help: "낮은 품질은 대역폭을 적게 사용합니다 (WiFi에 유리).",
     audio_title: "오디오 출력 장치",
     audio_help: "하나 이상의 오디오 출력을 선택하세요.",
     vol_label: "볼륨",
@@ -195,6 +213,11 @@ const i18n = {
     source_title: "ソース",
     source_label: "ストリームソース",
     source_help: "受信するOMTストリームを選択してください。",
+    quality_label: "映像品質",
+    quality_low: "低（WiFi向け）",
+    quality_medium: "中",
+    quality_high: "高",
+    quality_help: "低品質は帯域幅を節約します（WiFiに最適）。",
     audio_title: "オーディオ出力デバイス",
     audio_help: "再生するオーディオ出力を選択してください。",
     vol_label: "音量",
@@ -212,6 +235,11 @@ const i18n = {
     source_title: "Fuente",
     source_label: "Fuente de stream",
     source_help: "Seleccione el stream OMT para recibir y reproducir.",
+    quality_label: "Calidad de video",
+    quality_low: "Baja (ideal para WiFi)",
+    quality_medium: "Media",
+    quality_high: "Alta",
+    quality_help: "Menor calidad usa menos ancho de banda (mejor para WiFi).",
     audio_title: "Dispositivos de Salida de Audio",
     audio_help: "Seleccione una o mas salidas de audio para la reproduccion.",
     vol_label: "Volumen",
@@ -253,6 +281,10 @@ function applyI18n() {
   const volDisplay = document.getElementById('volDisplay');
   const pct = volDisplay ? volDisplay.textContent : '100%';
   document.getElementById('volLabel').innerHTML = t('vol_label') + ': <span id="volDisplay">' + pct + '</span>';
+  // Quality options
+  document.querySelectorAll('[data-i18n-opt]').forEach(el => {
+    el.textContent = t(el.dataset.i18nOpt);
+  });
 }
 
 // ── App ───────────────────────────────────────────────────────────────────
@@ -322,12 +354,19 @@ function loadVolume() {
   }
 }
 
+function loadQuality() {
+  if (currentConfig && currentConfig.quality) {
+    document.getElementById('quality').value = currentConfig.quality;
+  }
+}
+
 async function loadAll() {
   try {
     await loadConfig();
     await loadSources();
     await loadDevices();
     loadVolume();
+    loadQuality();
     toast(t('refreshed'), 'info');
   } catch (e) {
     toast(t('load_fail') + ': ' + e.message, 'error');
@@ -342,10 +381,12 @@ async function saveConfig() {
   });
 
   const volPct = Number(document.getElementById('volume').value);
+  const quality = document.getElementById('quality').value;
   const payload = {
     source: source,
     audio_devices: audioDevices,
     volume: volPct / 100.0,
+    quality: quality,
     web_port: currentConfig ? currentConfig.web_port : 8080
   };
 
