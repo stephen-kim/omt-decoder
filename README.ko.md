@@ -34,6 +34,8 @@ Tokio 런타임:   웹 서버 + mDNS 디스커버리 (비간섭)
 
 ### 웹 UI
 
+![웹 UI](docs/webui.png)
+
 다크 테마 웹 컨트롤 패널 (omt-encoder 스타일):
 - mDNS 자동 탐색 소스 선택
 - 오디오 출력 장치 선택

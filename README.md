@@ -34,6 +34,8 @@ Tokio runtime:  Web server + mDNS discovery (non-interfering)
 
 ### Web UI
 
+![Web UI](docs/webui.png)
+
 Built-in web control panel with dark theme (matching omt-encoder style):
 - Source selection with mDNS auto-discovery
 - Audio output device selection
