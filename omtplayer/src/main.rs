@@ -158,6 +158,21 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
             }
         };
 
+        // Log stalls in frame delivery (detect >100ms gaps)
+        {
+            static mut LAST_FRAME: Option<std::time::Instant> = None;
+            let now = std::time::Instant::now();
+            unsafe {
+                if let Some(last) = LAST_FRAME {
+                    let gap = now.duration_since(last).as_millis();
+                    if gap > 100 {
+                        eprintln!("STALL: {}ms gap between video frames", gap);
+                    }
+                }
+                LAST_FRAME = Some(now);
+            }
+        }
+
         // Send video to decode thread (non-blocking, drop if full)
         let _ = video_tx.try_send(frame);
     }
