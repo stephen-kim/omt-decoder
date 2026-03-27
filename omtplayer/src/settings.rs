@@ -10,6 +10,7 @@ pub struct Settings {
     pub audio_devices: Vec<String>,
     pub volume: f32,
     pub quality: String,
+    pub codec: String,
     pub web_port: u16,
 }
 
@@ -20,6 +21,7 @@ impl Default for Settings {
             audio_devices: Vec::new(),
             volume: 1.0,
             quality: "Medium".to_string(),
+            codec: "VMX1".to_string(),
             web_port: 8080,
         }
     }

@@ -82,6 +82,7 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
 
     let mut current_source = initial_settings.source.clone();
     let mut current_quality = initial_settings.quality.clone();
+    let mut current_codec = initial_settings.codec.clone();
     let mut conn: Option<receiver::OMTConnection> = None;
 
     let (video_tx, video_rx) = std::sync::mpsc::sync_channel::<libomtnet::OMTFrame>(2);
@@ -91,7 +92,7 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
         .expect("failed to spawn video thread");
 
     if current_source != "None" && !current_source.is_empty() {
-        conn = try_connect(&current_source, &current_quality);
+        conn = try_connect(&current_source, &current_quality, &current_codec);
     }
 
     loop {
@@ -102,15 +103,17 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                 println!("Source changed: {}", new_settings.source);
                 current_source = new_settings.source.clone();
                 current_quality = new_settings.quality.clone();
+                current_codec = new_settings.codec.clone();
                 conn = None;
                 if current_source != "None" && !current_source.is_empty() {
-                    conn = try_connect(&current_source, &current_quality);
+                    conn = try_connect(&current_source, &current_quality, &current_codec);
                 }
-            } else if new_settings.quality != current_quality {
+            } else if new_settings.quality != current_quality || new_settings.codec != current_codec {
                 current_quality = new_settings.quality.clone();
-                println!("Quality changed: {}", current_quality);
+                current_codec = new_settings.codec.clone();
+                println!("Settings changed: quality={} codec={}", current_quality, current_codec);
                 if let Some(ref c) = conn {
-                    let _ = c.send_quality(&current_quality);
+                    let _ = c.send_settings(&current_quality, &current_codec);
                 }
             }
 
@@ -146,7 +149,7 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
                 conn = None;
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 if current_source != "None" && !current_source.is_empty() {
-                    conn = try_connect(&current_source, &current_quality);
+                    conn = try_connect(&current_source, &current_quality, &current_codec);
                 }
             }
         }
@@ -154,36 +157,75 @@ fn player_loop(initial_settings: Settings, mut settings_rx: watch::Receiver<Sett
 }
 
 /// Video decode + DRM present on dedicated thread.
+/// Routes to VMX1 software decoder or H.264/H.265 hardware decoder based on codec field.
 #[cfg(target_os = "linux")]
 fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
+    use libomtnet::OMTCodec;
+
     let mut video_output: Option<video::VideoOutput> = None;
     let mut vmx_dec: Option<vmx_decoder::VmxDecoder> = None;
     let mut current_width: u32 = 0;
     let mut current_height: u32 = 0;
+    let mut current_codec: i32 = 0;
 
     while let Ok(frame) = rx.recv() {
         if let Some(ref vh) = frame.video_header {
             let w = vh.width as u32;
             let h = vh.height as u32;
 
-            if w != current_width || h != current_height {
+            if w != current_width || h != current_height || vh.codec != current_codec {
                 current_width = w;
                 current_height = h;
+                current_codec = vh.codec;
                 let frame_rate = if vh.frame_rate_d > 0 {
                     vh.frame_rate_n as f32 / vh.frame_rate_d as f32
                 } else {
                     60.0
                 };
-                println!("Video: {}x{} @ {:.2}fps codec=0x{:08X}", w, h, frame_rate, vh.codec);
-                vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
+
+                let codec_name = match vh.codec {
+                    c if c == OMTCodec::VMX1 as i32 => "VMX1",
+                    c if c == OMTCodec::H264 as i32 => "H264",
+                    c if c == OMTCodec::H265 as i32 => "H265",
+                    c if c == OMTCodec::BGRA as i32 => "BGRA",
+                    _ => "unknown",
+                };
+                println!("Video: {}x{} @ {:.2}fps codec={}", w, h, frame_rate, codec_name);
+
+                // Reset decoders
+                vmx_dec = None;
+                match vh.codec {
+                    c if c == OMTCodec::VMX1 as i32 => {
+                        vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
+                    }
+                    c if c == OMTCodec::H264 as i32 || c == OMTCodec::H265 as i32 => {
+                        // TODO: V4L2 M2M hardware decoder
+                        eprintln!("H.264/H.265 hardware decode not yet implemented, frames will be dropped");
+                    }
+                    _ => {}
+                }
                 video_output = video::VideoOutput::new(w, h, frame_rate);
             }
 
-            if let Some(ref mut dec) = vmx_dec {
-                if let Some(bgra_data) = dec.decode(&frame.data) {
-                    if let Some(ref mut vo) = video_output {
-                        vo.present(bgra_data, w * 4);
+            // Decode based on codec
+            match vh.codec {
+                c if c == OMTCodec::VMX1 as i32 => {
+                    if let Some(ref mut dec) = vmx_dec {
+                        if let Some(bgra_data) = dec.decode(&frame.data) {
+                            if let Some(ref mut vo) = video_output {
+                                vo.present(bgra_data, w * 4);
+                            }
+                        }
                     }
+                }
+                c if c == OMTCodec::BGRA as i32 => {
+                    // Raw BGRA — no decode needed
+                    if let Some(ref mut vo) = video_output {
+                        vo.present(&frame.data, w * 4);
+                    }
+                }
+                _ => {
+                    // H264/H265 — placeholder for HW decode
                 }
             }
         }
@@ -195,10 +237,10 @@ fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
     while let Ok(_) = rx.recv() {}
 }
 
-fn try_connect(source: &str, quality: &str) -> Option<receiver::OMTConnection> {
+fn try_connect(source: &str, quality: &str, codec: &str) -> Option<receiver::OMTConnection> {
     let addr = source.strip_prefix("omt://").unwrap_or(source);
     println!("Connecting to {}...", addr);
-    match receiver::OMTConnection::connect(addr, quality) {
+    match receiver::OMTConnection::connect(addr, quality, codec) {
         Ok(c) => {
             println!("Connected, subscriptions sent");
             Some(c)

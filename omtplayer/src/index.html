@@ -141,6 +141,14 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px;
       <option value="High" data-i18n-opt="quality_high">High</option>
     </select>
     <div class="help" data-i18n="quality_help">Lower quality uses less bandwidth (better for WiFi).</div>
+
+    <label style="margin-top: 16px;" data-i18n="codec_label">Video codec</label>
+    <select id="codec" onchange="saveConfig()">
+      <option value="VMX1">VMX1</option>
+      <option value="H265,H264,VMX1" data-i18n-opt="codec_h265">H.265 (preferred)</option>
+      <option value="H264,VMX1" data-i18n-opt="codec_h264">H.264 (preferred)</option>
+    </select>
+    <div class="help" data-i18n="codec_help">H.264/H.265 use hardware encode/decode for lower CPU and bandwidth. Encoder must support the selected codec.</div>
   </div>
 
   <div class="card">
@@ -174,6 +182,10 @@ const i18n = {
     quality_medium: "Medium",
     quality_high: "High",
     quality_help: "Lower quality uses less bandwidth (better for WiFi).",
+    codec_label: "Video codec",
+    codec_h265: "H.265 (preferred)",
+    codec_h264: "H.264 (preferred)",
+    codec_help: "H.264/H.265 use hardware encode/decode for lower CPU and bandwidth. Encoder must support the selected codec.",
     audio_title: "Audio Output Devices",
     audio_help: "Select one or more audio outputs for playback.",
     vol_label: "Volume",
@@ -196,6 +208,10 @@ const i18n = {
     quality_medium: "보통",
     quality_high: "높음",
     quality_help: "낮은 품질은 대역폭을 적게 사용합니다 (WiFi에 유리).",
+    codec_label: "영상 코덱",
+    codec_h265: "H.265 (우선)",
+    codec_h264: "H.264 (우선)",
+    codec_help: "H.264/H.265는 하드웨어 인코딩/디코딩으로 CPU와 대역폭을 절약합니다. 인코더가 해당 코덱을 지원해야 합니다.",
     audio_title: "오디오 출력 장치",
     audio_help: "하나 이상의 오디오 출력을 선택하세요.",
     vol_label: "볼륨",
@@ -218,6 +234,10 @@ const i18n = {
     quality_medium: "中",
     quality_high: "高",
     quality_help: "低品質は帯域幅を節約します（WiFiに最適）。",
+    codec_label: "映像コーデック",
+    codec_h265: "H.265（優先）",
+    codec_h264: "H.264（優先）",
+    codec_help: "H.264/H.265はハードウェアエンコード/デコードでCPUと帯域幅を節約します。エンコーダーが対応している必要があります。",
     audio_title: "オーディオ出力デバイス",
     audio_help: "再生するオーディオ出力を選択してください。",
     vol_label: "音量",
@@ -240,6 +260,10 @@ const i18n = {
     quality_medium: "Media",
     quality_high: "Alta",
     quality_help: "Menor calidad usa menos ancho de banda (mejor para WiFi).",
+    codec_label: "Codec de video",
+    codec_h265: "H.265 (preferido)",
+    codec_h264: "H.264 (preferido)",
+    codec_help: "H.264/H.265 usan codificacion/decodificacion por hardware para menor uso de CPU y ancho de banda. El codificador debe soportar el codec seleccionado.",
     audio_title: "Dispositivos de Salida de Audio",
     audio_help: "Seleccione una o mas salidas de audio para la reproduccion.",
     vol_label: "Volumen",
@@ -358,6 +382,9 @@ function loadQuality() {
   if (currentConfig && currentConfig.quality) {
     document.getElementById('quality').value = currentConfig.quality;
   }
+  if (currentConfig && currentConfig.codec) {
+    document.getElementById('codec').value = currentConfig.codec;
+  }
 }
 
 async function loadAll() {
@@ -382,11 +409,13 @@ async function saveConfig() {
 
   const volPct = Number(document.getElementById('volume').value);
   const quality = document.getElementById('quality').value;
+  const codec = document.getElementById('codec').value;
   const payload = {
     source: source,
     audio_devices: audioDevices,
     volume: volPct / 100.0,
     quality: quality,
+    codec: codec,
     web_port: currentConfig ? currentConfig.web_port : 8080
   };
 
