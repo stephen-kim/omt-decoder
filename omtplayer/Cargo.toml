@@ -3,6 +3,10 @@ name = "omtplayer"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["ffmpeg"]
+ffmpeg = []
+
 [dependencies]
 libomtnet = { path = "../libomtnet" }
 anyhow = "1.0"

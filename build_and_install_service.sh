@@ -8,7 +8,8 @@ echo "== System update =="
 sudo apt update
 
 echo "== Ensure dependencies =="
-sudo apt install -y clang git curl libasound2 libasound2-dev libdrm-dev pkg-config avahi-utils
+sudo apt install -y clang git curl libasound2 libasound2-dev libdrm-dev pkg-config avahi-utils \
+  libavcodec-dev libavutil-dev libswscale-dev
 
 # Install Rust if not present
 if ! command -v cargo >/dev/null 2>&1; then
