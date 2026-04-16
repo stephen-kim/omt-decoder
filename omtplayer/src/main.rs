@@ -9,6 +9,8 @@ mod audio;
 mod video;
 #[cfg(target_os = "linux")]
 mod vmx_decoder;
+#[cfg(target_os = "linux")]
+mod hw_decoder;
 
 use anyhow::Result;
 use settings::Settings;
@@ -164,6 +166,7 @@ fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
 
     let mut video_output: Option<video::VideoOutput> = None;
     let mut vmx_dec: Option<vmx_decoder::VmxDecoder> = None;
+    let mut hw_dec: Option<hw_decoder::HwDecoder> = None;
     let mut current_width: u32 = 0;
     let mut current_height: u32 = 0;
     let mut current_codec: i32 = 0;
@@ -185,8 +188,8 @@ fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
 
                 let codec_name = match vh.codec {
                     c if c == OMTCodec::VMX1 as i32 => "VMX1",
-                    c if c == OMTCodec::H264 as i32 => "H264",
-                    c if c == OMTCodec::H265 as i32 => "H265",
+                    c if c == OMTCodec::H264 as i32 => "H.264",
+                    c if c == OMTCodec::H265 as i32 => "H.265",
                     c if c == OMTCodec::BGRA as i32 => "BGRA",
                     _ => "unknown",
                 };
@@ -194,38 +197,45 @@ fn video_thread(rx: std::sync::mpsc::Receiver<libomtnet::OMTFrame>) {
 
                 // Reset decoders
                 vmx_dec = None;
+                hw_dec = None;
                 match vh.codec {
                     c if c == OMTCodec::VMX1 as i32 => {
                         vmx_dec = vmx_decoder::VmxDecoder::new(w, h);
                     }
-                    c if c == OMTCodec::H264 as i32 || c == OMTCodec::H265 as i32 => {
-                        // TODO: V4L2 M2M hardware decoder
-                        eprintln!("H.264/H.265 hardware decode not yet implemented, frames will be dropped");
+                    c if c == OMTCodec::H264 as i32 => {
+                        hw_dec = hw_decoder::HwDecoder::new(w, h, "H264");
+                        if hw_dec.is_none() {
+                            eprintln!("Video: H.264 hardware decoder not available");
+                        }
+                    }
+                    c if c == OMTCodec::H265 as i32 => {
+                        hw_dec = hw_decoder::HwDecoder::new(w, h, "H265");
+                        if hw_dec.is_none() {
+                            eprintln!("Video: H.265 hardware decoder not available");
+                        }
                     }
                     _ => {}
                 }
                 video_output = video::VideoOutput::new(w, h, frame_rate);
             }
 
-            // Decode based on codec
-            match vh.codec {
+            // Decode and present
+            let bgra: Option<&[u8]> = match vh.codec {
                 c if c == OMTCodec::VMX1 as i32 => {
-                    if let Some(ref mut dec) = vmx_dec {
-                        if let Some(bgra_data) = dec.decode(&frame.data) {
-                            if let Some(ref mut vo) = video_output {
-                                vo.present(bgra_data, w * 4);
-                            }
-                        }
-                    }
+                    vmx_dec.as_mut().and_then(|d| d.decode(&frame.data))
+                }
+                c if c == OMTCodec::H264 as i32 || c == OMTCodec::H265 as i32 => {
+                    hw_dec.as_mut().and_then(|d| d.decode(&frame.data))
                 }
                 c if c == OMTCodec::BGRA as i32 => {
-                    // Raw BGRA — no decode needed
-                    if let Some(ref mut vo) = video_output {
-                        vo.present(&frame.data, w * 4);
-                    }
+                    Some(&frame.data)
                 }
-                _ => {
-                    // H264/H265 — placeholder for HW decode
+                _ => None,
+            };
+
+            if let Some(pixels) = bgra {
+                if let Some(ref mut vo) = video_output {
+                    vo.present(pixels, w * 4);
                 }
             }
         }
