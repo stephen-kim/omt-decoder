@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_DIR="/opt/omtplayer"
+INSTALL_DIR="/opt/omtdecoder"
 
 echo "== System update =="
 sudo apt update
@@ -19,31 +19,31 @@ fi
 # shellcheck disable=SC1091
 [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 
-echo "== Build omtplayer =="
+echo "== Build omtdecoder =="
 cd "$ROOT_DIR"
 cargo build --release
 
-OMTPLAYER_BIN="$ROOT_DIR/target/release/omtplayer"
+OMTPLAYER_BIN="$ROOT_DIR/target/release/omtdecoder"
 if [[ ! -f "$OMTPLAYER_BIN" ]]; then
   echo "Build output not found: $OMTPLAYER_BIN"
   exit 1
 fi
 
-if [[ ! -f "$ROOT_DIR/omtplayer/omtplayer.service" ]]; then
-  echo "Service file not found: $ROOT_DIR/omtplayer/omtplayer.service"
+if [[ ! -f "$ROOT_DIR/omtdecoder/omtdecoder.service" ]]; then
+  echo "Service file not found: $ROOT_DIR/omtdecoder/omtdecoder.service"
   exit 1
 fi
 
 echo "== Install service =="
-if systemctl is-active --quiet omtplayer; then
-  sudo systemctl stop omtplayer
+if systemctl is-active --quiet omtdecoder; then
+  sudo systemctl stop omtdecoder
 fi
 sudo mkdir -p "$INSTALL_DIR"
 sudo cp "$OMTPLAYER_BIN" "$INSTALL_DIR"/
-sudo cp "$ROOT_DIR/omtplayer/omtplayer.service" /etc/systemd/system/
+sudo cp "$ROOT_DIR/omtdecoder/omtdecoder.service" /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable omtplayer
-sudo systemctl restart omtplayer
-sudo systemctl status omtplayer --no-pager
+sudo systemctl enable omtdecoder
+sudo systemctl restart omtdecoder
+sudo systemctl status omtdecoder --no-pager
 
 echo "Done."

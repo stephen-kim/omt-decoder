@@ -563,7 +563,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "omtplayer"
+name = "omtdecoder"
 version = "0.1.0"
 dependencies = [
  "anyhow",

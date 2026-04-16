@@ -1,0 +1,11 @@
+﻿[Unit]
+Description=OMT Player
+After=network.target
+
+[Service]
+ExecStart=/opt/omtdecoder/omtdecoder
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

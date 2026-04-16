@@ -64,7 +64,7 @@ Quality can be changed at runtime from the web UI without reconnecting.
 
 ### 1. Set Console Boot
 
-`omtplayer` outputs directly via DRM — desktop mode must be disabled.
+`omtdecoder` outputs directly via DRM — desktop mode must be disabled.
 
 ```bash
 sudo raspi-config
@@ -81,12 +81,12 @@ chmod +x build_and_install_service.sh
 ./build_and_install_service.sh
 ```
 
-The script installs Rust toolchain + dependencies, builds the project, deploys to `/opt/omtplayer`, and registers the systemd service.
+The script installs Rust toolchain + dependencies, builds the project, deploys to `/opt/omtdecoder`, and registers the systemd service.
 
 ### 3. Check Status
 
 ```bash
-sudo systemctl status omtplayer
+sudo systemctl status omtdecoder
 ```
 
 Web UI: `http://<pi-ip>:8080/`
